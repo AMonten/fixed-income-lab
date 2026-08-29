@@ -12,8 +12,8 @@ throughout fixed income, use :func:`price_per_100` to rescale.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import date
-from typing import Callable
 
 from ..cashflows.generator import CashFlow, cash_flows_after
 from ..conventions.day_count import DayCountConvention
@@ -48,7 +48,9 @@ def present_value_from_yield(
     day_count: DayCountConvention,
 ) -> float:
     """PV discounting every cash flow at a single flat yield ``y``."""
-    return present_value(cash_flows, settlement_date, lambda t: yield_convention.discount_factor(y, t), day_count)
+    return present_value(
+        cash_flows, settlement_date, lambda t: yield_convention.discount_factor(y, t), day_count
+    )
 
 
 def price_per_100(present_value_amount: float, face_value: float) -> float:

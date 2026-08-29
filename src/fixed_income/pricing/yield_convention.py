@@ -54,7 +54,7 @@ class YieldConvention:
         return (1.0 + y / m) ** (-m * t_years)
 
     @classmethod
-    def street(cls, frequency: Frequency = Frequency.SEMI_ANNUAL) -> "YieldConvention":
+    def street(cls, frequency: Frequency = Frequency.SEMI_ANNUAL) -> YieldConvention:
         """The standard US bond-market ("street") convention: periodic
         compounding at the bond's own coupon frequency."""
         return cls(compounding=CompoundingConvention.PERIODIC, periods_per_year=frequency.periods_per_year)

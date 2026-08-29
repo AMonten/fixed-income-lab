@@ -92,7 +92,9 @@ def analyze_cash_flows(
     clean = dirty_price - accrued_interest
     macaulay = _macaulay_duration(cash_flows, settlement_date, yield_to_maturity, yield_convention, day_count)
     modified = modified_duration_from_macaulay(macaulay, yield_to_maturity, yield_convention)
-    dollar_dv01 = _dv01(cash_flows, face_value, settlement_date, yield_to_maturity, yield_convention, day_count)
+    dollar_dv01 = _dv01(
+        cash_flows, face_value, settlement_date, yield_to_maturity, yield_convention, day_count
+    )
     convexity_value = _convexity(cash_flows, settlement_date, yield_to_maturity, yield_convention, day_count)
 
     return SecurityAnalytics(

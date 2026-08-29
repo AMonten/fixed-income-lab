@@ -78,7 +78,8 @@ with st.sidebar:
             "Forward-rate assumption (%)",
             value=4.50,
             step=0.05,
-            help="Flat assumed reference rate for every reset date without an observed fixing (V1 has no market-curve bootstrapping).",
+            help="Flat assumed reference rate for every reset date without an observed fixing "
+            "(V1 has no market-curve bootstrapping).",
         ) / 100.0
         apply_floor = st.checkbox("Apply a rate floor", value=True)
         floor = st.number_input("Floor (%)", value=0.0, step=0.25) / 100.0 if apply_floor else None
@@ -239,11 +240,18 @@ with tab_scenarios:
     )
     st.dataframe(scenario_df, width='stretch', hide_index=True)
 
+    shock_bps = [s.shock_bp for s in scenarios]
+    series = [
+        ("Full reprice", [s.full_reprice for s in scenarios]),
+        ("Duration approx.", [s.duration_approx_price for s in scenarios]),
+        ("Convexity approx.", [s.convexity_approx_price for s in scenarios]),
+    ]
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=[s.shock_bp for s in scenarios], y=[s.full_reprice for s in scenarios], name="Full reprice", mode="lines+markers"))
-    fig.add_trace(go.Scatter(x=[s.shock_bp for s in scenarios], y=[s.duration_approx_price for s in scenarios], name="Duration approx.", mode="lines+markers"))
-    fig.add_trace(go.Scatter(x=[s.shock_bp for s in scenarios], y=[s.convexity_approx_price for s in scenarios], name="Convexity approx.", mode="lines+markers"))
-    fig.update_layout(xaxis_title="Yield shock (bp)", yaxis_title="Price (per 100 par)", legend_title="Method")
+    for name, values in series:
+        fig.add_trace(go.Scatter(x=shock_bps, y=values, name=name, mode="lines+markers"))
+    fig.update_layout(
+        xaxis_title="Yield shock (bp)", yaxis_title="Price (per 100 par)", legend_title="Method"
+    )
     st.plotly_chart(fig, width='stretch')
 
 # ---------------------------------------------------------------------------

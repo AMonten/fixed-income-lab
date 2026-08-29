@@ -12,7 +12,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from datetime import date
 
-from ..cashflows.generator import CashFlow, cash_flows_after, generate_bullet_cashflows, generate_zero_coupon_cashflow
+from ..cashflows.generator import (
+    CashFlow,
+    cash_flows_after,
+    generate_bullet_cashflows,
+    generate_zero_coupon_cashflow,
+)
 from ..cashflows.schedule import BusinessDayConvention, SchedulePeriod, generate_schedule
 from ..conventions.day_count import Actual365Fixed, DayCountConvention
 from ..conventions.frequency import Frequency
@@ -60,7 +65,8 @@ class Bond:
         return cash_flows_after(self.cash_flows(), settlement_date)
 
     def previous_coupon_date(self, settlement_date: date) -> date:
-        """Accrual start of the period containing ``settlement_date`` (or issue date if before the first period)."""
+        """Accrual start of the period containing ``settlement_date``
+        (or issue date if before the first period)."""
         for period in self.schedule():
             if period.accrual_start <= settlement_date < period.accrual_end:
                 return period.accrual_start

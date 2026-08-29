@@ -172,7 +172,7 @@ class AmortizingBond:
         frequency: Frequency = Frequency.SEMI_ANNUAL,
         day_count: DayCountConvention | None = None,
         business_day_convention: BusinessDayConvention = BusinessDayConvention.FOLLOWING,
-    ) -> "AmortizingBond":
+    ) -> AmortizingBond:
         """Construct a bond that repays equal principal installments each period.
 
         The last installment absorbs any rounding remainder so principal
@@ -185,7 +185,10 @@ class AmortizingBond:
         repayments = [installment] * n
         repayments[-1] = original_face - sum(repayments[:-1])
         plan = ExplicitAmortizationPlan(tuple(repayments))
-        return cls(original_face, coupon_rate, issue_date, maturity_date, plan, frequency, dc, business_day_convention)
+        return cls(
+            original_face, coupon_rate, issue_date, maturity_date, plan,
+            frequency, dc, business_day_convention,
+        )
 
     def schedule(self) -> list[SchedulePeriod]:
         return generate_schedule(
@@ -198,7 +201,9 @@ class AmortizingBond:
         entries = []
         begin = self.original_face
         for period in schedule:
-            end = max(self.amortization.outstanding_after(period.period_index, schedule, self.original_face), 0.0)
+            end = max(
+                self.amortization.outstanding_after(period.period_index, schedule, self.original_face), 0.0
+            )
             principal_repayment = begin - end
             year_fraction = self.day_count.year_fraction(period.accrual_start, period.accrual_end)
             interest = begin * self.coupon_rate * year_fraction
@@ -229,7 +234,7 @@ class AmortizingBond:
                 begin_principal=entry.begin_principal,
                 end_principal=entry.end_principal,
             )
-            for period, entry in zip(schedule, entries)
+            for period, entry in zip(schedule, entries, strict=True)
         ]
 
     def cash_flows_after(self, settlement_date: date) -> list[CashFlow]:

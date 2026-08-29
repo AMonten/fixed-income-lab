@@ -129,7 +129,7 @@ _REGISTRY: dict[str, DayCountConvention] = {
 }
 
 
-def get_day_count_convention(convention: "DayCountConvention | DayCount | str") -> DayCountConvention:
+def get_day_count_convention(convention: DayCountConvention | DayCount | str) -> DayCountConvention:
     """Resolve a convention passed as an instance, :class:`DayCount`, or string name."""
     if isinstance(convention, DayCountConvention):
         return convention

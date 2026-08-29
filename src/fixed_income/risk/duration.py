@@ -98,8 +98,12 @@ def dv01(
     bump: float = _BUMP,
 ) -> float:
     """Dollar price change (per 100 par) for a 1bp parallel yield move, via full repricing."""
-    price_up = price_from_yield(cash_flows, face_value, settlement_date, y + bump, yield_convention, day_count)
-    price_down = price_from_yield(cash_flows, face_value, settlement_date, y - bump, yield_convention, day_count)
+    price_up = price_from_yield(
+        cash_flows, face_value, settlement_date, y + bump, yield_convention, day_count
+    )
+    price_down = price_from_yield(
+        cash_flows, face_value, settlement_date, y - bump, yield_convention, day_count
+    )
     return (price_down - price_up) / 2.0
 
 

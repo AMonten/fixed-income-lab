@@ -61,7 +61,9 @@ def run_rate_shock_scenarios(
     shocks_bp: tuple[float, ...] = DEFAULT_SHOCKS_BP,
 ) -> list[ScenarioResult]:
     """Run parallel yield-shock scenarios and compare full repricing to Taylor approximations."""
-    base_price = price_from_yield(cash_flows, face_value, settlement_date, base_yield, yield_convention, day_count)
+    base_price = price_from_yield(
+        cash_flows, face_value, settlement_date, base_yield, yield_convention, day_count
+    )
     macaulay = macaulay_duration(cash_flows, settlement_date, base_yield, yield_convention, day_count)
     modified = modified_duration_from_macaulay(macaulay, base_yield, yield_convention)
     conv = _convexity(cash_flows, settlement_date, base_yield, yield_convention, day_count)

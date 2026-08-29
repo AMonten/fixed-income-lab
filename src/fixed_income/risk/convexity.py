@@ -35,7 +35,8 @@ def convexity(
 ) -> float:
     """Convexity of ``cash_flows`` discounted at flat yield ``y``, in years^2."""
     is_continuous = yield_convention.compounding is CompoundingConvention.CONTINUOUS
-    m = 1 if yield_convention.compounding is CompoundingConvention.ANNUAL else yield_convention.periods_per_year
+    is_annual = yield_convention.compounding is CompoundingConvention.ANNUAL
+    m = 1 if is_annual else yield_convention.periods_per_year
 
     pv_total = 0.0
     weighted = 0.0

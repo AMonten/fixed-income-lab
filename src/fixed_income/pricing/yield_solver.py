@@ -92,4 +92,6 @@ def solve_yield_to_maturity(
     try:
         return brentq(objective, lo, hi, xtol=tol, maxiter=max_iter)
     except RuntimeError as exc:  # pragma: no cover - brentq convergence failure
-        raise YieldSolverError(f"Yield solver failed to converge within {max_iter} iterations: {exc}") from exc
+        raise YieldSolverError(
+            f"Yield solver failed to converge within {max_iter} iterations: {exc}"
+        ) from exc

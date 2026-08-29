@@ -13,8 +13,8 @@ from dataclasses import dataclass
 from datetime import date
 
 from ..conventions.day_count import DayCountConvention
-from .schedule import SchedulePeriod, adjust_business_day
 from .schedule import BusinessDayConvention as _BusinessDayConvention
+from .schedule import SchedulePeriod, adjust_business_day
 
 
 @dataclass(frozen=True)
@@ -68,7 +68,7 @@ def generate_variable_rate_cashflows(
 
     cash_flows = []
     last_index = len(schedule) - 1
-    for period, coupon_rate in zip(schedule, coupon_rates):
+    for period, coupon_rate in zip(schedule, coupon_rates, strict=True):
         year_fraction = day_count.year_fraction(period.accrual_start, period.accrual_end)
         coupon = face_value * coupon_rate * year_fraction
         is_final = period.period_index == last_index

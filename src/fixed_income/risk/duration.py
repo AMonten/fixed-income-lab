@@ -29,9 +29,11 @@ Modified duration
 DV01 / PV01
     The dollar price change for a one-basis-point (0.0001) move in yield,
     computed here by full repricing (central difference) rather than the
-    ``D_mod * P * 0.0001`` approximation — this keeps DV01 exact (up to
-    numerical precision) regardless of convexity, and generalizes to any
-    cash-flow list without needing a closed-form duration.
+    ``D_mod * P * 0.0001`` approximation. Full repricing has its own
+    truncation error, ``O(h^2) * P'''``, but it is several orders of
+    magnitude smaller than the error the duration-based approximation makes
+    at realistic convexity — not exact, just far more accurate — and it
+    generalizes to any cash-flow list without needing a closed-form duration.
 """
 
 from __future__ import annotations

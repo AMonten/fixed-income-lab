@@ -82,7 +82,7 @@ a ninguna cotización real.
 
 | Evidencia | Archivo | Issue | Criterio de hecho | Estado |
 |---|---|---|---|---|
-| Reproducido: ACT/365 → 99.997019, 30/360 → 99.997379, 30/360+`NONE` → 100.0000000000 | `pricing/present_value.py:38` vs `cashflows/generator.py:72` | [#4](https://github.com/AMonten/fixed-income-lab/issues/4) | El entregable inmediato **no es el fix**, es el test de regresión: escribir hoy `test_par_bond_prices_to_exactly_100`, marcado `xfail`, que pasa a verde cuando aterrice la separación de responsabilidades del Bloque 1 (mismo test alimenta el invariante par→100 de Bloque 5). | pendiente |
+| Reproducido: ACT/365 → 99.997019, 30/360 → 99.997379, 30/360+`NONE` → 100.0000000000 | `pricing/present_value.py:38` vs `cashflows/generator.py:72` | [#4](https://github.com/AMonten/fixed-income-lab/issues/4) | El entregable inmediato **no es el fix**, es el test de regresión: escribir hoy `test_par_bond_prices_to_exactly_100`, marcado `xfail`, que pasa a verde cuando aterrice la separación de responsabilidades del Bloque 1 (mismo test alimenta el invariante par→100 de Bloque 5). | en progreso — test `xfail` en `tests/test_yield_solver.py`; el fix real queda para Bloque 1 |
 
 ### 0A — Defectos de correctitud (producen un número incorrecto)
 
@@ -104,8 +104,8 @@ a ninguna cotización real.
 
 | # | Ítem | Evidencia | Archivo | Issue | Criterio de hecho | Estado |
 |---|---|---|---|---|---|---|
-| 0.7 | `numpy` es dependencia declarada, cero usos en `src/`/`app/` (grep vacío confirmado). | verificado | `pyproject.toml` | [#10](https://github.com/AMonten/fixed-income-lab/issues/10) | CI sigue verde sin `numpy` en `pyproject.toml`. | pendiente |
-| 0.9 | README afirma que el DV01 por full-repricing "stays exact regardless of convexity" — falso, tiene error `O(h²)·P'''`, solo es más chico que la aproximación de duration modificada. | verificado | `README.md:226` (el mismo claim está también en el docstring de `risk/duration.py:32-34` — corregir los dos, no solo el README) | [#12](https://github.com/AMonten/fixed-income-lab/issues/12) | Ningún texto del repo (README ni docstrings) afirma "exacto"; describe el error `O(h²)` en su lugar. | pendiente |
+| 0.7 | `numpy` es dependencia declarada, cero usos en `src/`/`app/` (grep vacío confirmado). | verificado | `pyproject.toml` | [#10](https://github.com/AMonten/fixed-income-lab/issues/10) | CI sigue verde sin `numpy` en `pyproject.toml`. | hecho |
+| 0.9 | README afirma que el DV01 por full-repricing "stays exact regardless of convexity" — falso, tiene error `O(h²)·P'''`, solo es más chico que la aproximación de duration modificada. | verificado | `README.md:226` (el mismo claim está también en el docstring de `risk/duration.py:32-34` — corregir los dos, no solo el README) | [#12](https://github.com/AMonten/fixed-income-lab/issues/12) | Ningún texto del repo (README ni docstrings) afirma "exacto"; describe el error `O(h²)` en su lugar. | hecho |
 
 ---
 
@@ -172,7 +172,7 @@ casos de referencia separados en vez de asumir `Treasury = ICMA` (ver ahí).
 | Z-spread | Con la curva ya armada, resolver `z` tal que PV coincide con precio de mercado. Alto retorno inmediato para corporates, antes que callable/OAS. | [#25](https://github.com/AMonten/fixed-income-lab/issues/25) | Caso de referencia dentro de tolerancia documentada. | pendiente |
 | Spread duration / spread DV01 | Sigue naturalmente de Z-spread. | [#26](https://github.com/AMonten/fixed-income-lab/issues/26) | Caso de referencia dentro de tolerancia documentada. | pendiente |
 | Key-rate durations / partial DV01 por pilar | `risk` ya solo ve flujos, así que un shock por pilar es casi gratis con la arquitectura actual. Es la métrica que una tesorería usa de verdad para cubrir. Habilita escenarios no-paralelos (steepener, flattener, belly shock, shocks custom por nodo). | [#27](https://github.com/AMonten/fixed-income-lab/issues/27) | Suma de KRDs por pilar ≈ DV01 paralelo dentro de tolerancia documentada. | pendiente |
-| Corregir claim de README sobre DV01 "exacto" | El README dice que la diferencia central "stays exact regardless of convexity" — es falso, tiene error `O(h²)·P'''`. Es mejor que `D_mod·P·1e-4`, no exacto. Corregir la afirmación (ver 0.9/0C, incluye también el docstring de `risk/duration.py`). | [#12](https://github.com/AMonten/fixed-income-lab/issues/12) (mismo issue que 0.9) | Ver 0.9. | pendiente |
+| Corregir claim de README sobre DV01 "exacto" | El README dice que la diferencia central "stays exact regardless of convexity" — es falso, tiene error `O(h²)·P'''`. Es mejor que `D_mod·P·1e-4`, no exacto. Corregir la afirmación (ver 0.9/0C, incluye también el docstring de `risk/duration.py`). | [#12](https://github.com/AMonten/fixed-income-lab/issues/12) (mismo issue que 0.9) | Ver 0.9. | hecho |
 
 ---
 
@@ -214,7 +214,7 @@ nada.
 | `tests/reference/` — validación de referencia | Para cada instrumento: inputs, expected clean/dirty/accrued/YTM/duration/convexity/cash flows, y la fuente de referencia declarada por fixture — "golden tests contra QuantLib" se renombra porque QuantLib no es la referencia adecuada para todo. Formato del fixture: `reference.engine`, `reference.version`, `reference.convention`, `tolerance.price`, `tolerance.yield`. Fuentes válidas: QuantLib, ejemplo trabajado de ICMA, ejemplo publicado por el Tesoro, caso analítico derivado a mano, caso de cash flow conocido de vendor. QuantLib (u otro motor externo) solo como dependencia de test/dev, no runtime. Casos mínimos a cubrir (ver Bloque 1): US Treasury, bono EUR bajo ACT/ACT ICMA, primer cupón irregular, último cupón irregular, año bisiesto. Indicadores a subir al README en vez de perseguir cobertura: `118 tests / 97% coverage / N casos de referencia independientes / M convenciones validadas`, y más adelante desviación máxima de precio y de yield contra referencia. | [#37](https://github.com/AMonten/fixed-income-lab/issues/37) | Cada instrumento soportado tiene ≥1 fixture con los campos de arriba, corriendo en CI dentro de la tolerancia declarada. | pendiente |
 | Invariantes analíticas | par→100 en fecha de cupón (mismo test que 0.1); precio monótono decreciente en yield; convexidad ≥ 0 con flujos positivos; `sum(principal) == face` (donde aplique — ver 0.5); `dirty == clean + accrued`; `factor ∈ [0,1]`; `DV01 ≈ D_mod·P·1e-4` dentro de tolerancia. | [#38](https://github.com/AMonten/fixed-income-lab/issues/38) | Cada invariante tiene un test explícito en CI. | pendiente |
 | Property-based testing con `hypothesis` | Generación de schedules: stubs, fin de mes, años bisiestos, frecuencias mixtas — encuentra edge cases que los tests example-based no encuentran. | [#39](https://github.com/AMonten/fixed-income-lab/issues/39) | Al menos la generación de schedules tiene tests basados en `hypothesis` corriendo en CI. | pendiente |
-| `--cov-fail-under` en CI | Evitar regresión silenciosa de cobertura. | [#40](https://github.com/AMonten/fixed-income-lab/issues/40) | Un PR que baja cobertura por debajo del umbral falla en CI. | pendiente |
+| `--cov-fail-under` en CI | Evitar regresión silenciosa de cobertura. | [#40](https://github.com/AMonten/fixed-income-lab/issues/40) | Un PR que baja cobertura por debajo del umbral falla en CI. | hecho |
 
 ---
 
@@ -222,9 +222,9 @@ nada.
 
 | Ítem | Detalle | Issue | Criterio de hecho | Estado |
 |---|---|---|---|---|
-| `mypy` en CI | Está en `dev` deps, pasa limpio hoy, pero no corre en el pipeline. Ponerlo antes de que deje de pasar en silencio. | [#41](https://github.com/AMonten/fixed-income-lab/issues/41) | Un PR que introduce un error de tipos falla en CI. | pendiente |
-| `py.typed` | Falta en el paquete propio — quien lo instale no recibe los tipos, se pierde todo el trabajo de tipado río abajo. | [#42](https://github.com/AMonten/fixed-income-lab/issues/42) | El archivo existe y queda empaquetado en el wheel (verificable en el ítem de CI de abajo). | pendiente |
-| Sacar `numpy` de dependencias (o vectorizar de verdad) | Ver 0.7/0C — cero usos confirmados. | [#10](https://github.com/AMonten/fixed-income-lab/issues/10) (mismo issue que 0.7) | Ver 0.7. | pendiente |
+| `mypy` en CI | Está en `dev` deps, pasa limpio hoy, pero no corre en el pipeline. Ponerlo antes de que deje de pasar en silencio. | [#41](https://github.com/AMonten/fixed-income-lab/issues/41) | Un PR que introduce un error de tipos falla en CI. | hecho |
+| `py.typed` | Falta en el paquete propio — quien lo instale no recibe los tipos, se pierde todo el trabajo de tipado río abajo. | [#42](https://github.com/AMonten/fixed-income-lab/issues/42) | El archivo existe y queda empaquetado en el wheel (verificable en el ítem de CI de abajo). | hecho |
+| Sacar `numpy` de dependencias (o vectorizar de verdad) | Ver 0.7/0C — cero usos confirmados. | [#10](https://github.com/AMonten/fixed-income-lab/issues/10) (mismo issue que 0.7) | Ver 0.7. | hecho |
 | Alinear versión y narrativa | `0.1.0`/Beta vs README "v1.0 feature-complete". Mantener `0.x` hasta cerrar market conventions + validación externa + arquitectura de curva + API estable, y recién ahí reservar `1.0` para compromiso de estabilidad de API. Agregar tags/releases/CHANGELOG. | [#43](https://github.com/AMonten/fixed-income-lab/issues/43) | `pyproject.toml` y README describen la misma fase de madurez; existe al menos un tag/release. | pendiente |
 | `sys.path.insert()` en el Streamlit app | El demo debería consumir el paquete igual que cualquier usuario (`from fixed_income import ...` vía instalación editable), no hackear el path — señal de madurez de packaging. | [#44](https://github.com/AMonten/fixed-income-lab/issues/44) | El app importa el paquete instalado (editable install), sin manipular `sys.path`. | pendiente |
 | CI: cerrar el círculo | Sumar a lint+pytest actuales: `mypy`, coverage threshold, `python -m build`, instalar el wheel generado, smoke import, docs build. | [#45](https://github.com/AMonten/fixed-income-lab/issues/45) | Cada paso corre y falla el pipeline si no pasa. | pendiente |

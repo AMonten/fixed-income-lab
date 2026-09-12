@@ -223,7 +223,10 @@ change, `D_mod = -1/P * dP/dy`:
 
 **DV01 / PV01** — dollar price change (per 100 par) for a 1bp parallel yield move,
 computed here by **full repricing** (central difference at `y ± 1bp`) rather than
-the `D_mod * P * 0.0001` approximation, so it stays exact regardless of convexity.
+the `D_mod * P * 0.0001` approximation. Full repricing has its own truncation
+error, `O(h^2) * P'''`, but it's several orders of magnitude smaller than the
+error the duration-based approximation makes at realistic convexity levels — not
+exact, just far more accurate.
 
 **Convexity** — the second-order term, `Convexity = (1/P) * d^2P/dy^2`, in closed
 form for a flat yield with `m` compounding periods per year (`m = 1` for annual):

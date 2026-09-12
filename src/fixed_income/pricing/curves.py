@@ -8,7 +8,8 @@ without pretending to be a full curve-construction framework.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+import math
+from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
 
@@ -34,13 +35,17 @@ class YieldCurve:
         compounding: Compounding convention the zero rates are quoted under.
         interpolation: Interpolation rule between pillar points. Outside the
             pillar range, the curve extrapolates flat (holds the nearest
-            endpoint rate constant).
+            endpoint rate constant). ``LOG_LINEAR`` requires every pillar
+            rate bracketing a query to be strictly positive, since it
+            interpolates in log-rate space; it raises :class:`ValueError`
+            for a zero or negative bracketing rate.
     """
 
     tenors: tuple[float, ...]
     zero_rates: tuple[float, ...]
     compounding: CompoundingConvention = CompoundingConvention.ANNUAL
     interpolation: Interpolation = Interpolation.LINEAR
+    _yield_convention: YieldConvention = field(init=False, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if len(self.tenors) != len(self.zero_rates):
@@ -49,6 +54,7 @@ class YieldCurve:
             raise ValueError("YieldCurve requires at least one pillar point")
         if list(self.tenors) != sorted(self.tenors):
             raise ValueError("tenors must be strictly increasing")
+        object.__setattr__(self, "_yield_convention", YieldConvention(compounding=self.compounding))
 
     def zero_rate(self, t: float) -> float:
         """Interpolated (or flat-extrapolated) zero rate at tenor ``t`` years."""
@@ -66,16 +72,18 @@ class YieldCurve:
                 if self.interpolation is Interpolation.FLAT:
                     return r0
                 if self.interpolation is Interpolation.LOG_LINEAR:
-                    import math
-
+                    if r0 <= 0 or r1 <= 0:
+                        raise ValueError(
+                            "LOG_LINEAR interpolation requires strictly positive zero rates; "
+                            f"got {r0!r} at tenor {t0} and {r1!r} at tenor {t1}"
+                        )
                     return math.exp(math.log(r0) * (1 - weight) + math.log(r1) * weight)
                 return r0 + weight * (r1 - r0)
         raise AssertionError("unreachable")  # pragma: no cover
 
     def discount_factor(self, t: float) -> float:
         r = self.zero_rate(t)
-        yc = YieldConvention(compounding=self.compounding)
-        return yc.discount_factor(r, t)
+        return self._yield_convention.discount_factor(r, t)
 
 
 def present_value_from_curve(

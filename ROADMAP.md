@@ -220,25 +220,27 @@ nada.
 
 ## Bloque 6 — Ingeniería y repo (P1/P2 — no bloquea lo anterior, se puede intercalar)
 
-| Ítem | Detalle | Criterio de hecho | Estado |
-|---|---|---|---|
-| `mypy` en CI | Está en `dev` deps, pasa limpio hoy, pero no corre en el pipeline. Ponerlo antes de que deje de pasar en silencio. | Un PR que introduce un error de tipos falla en CI. | pendiente |
-| `py.typed` | Falta en el paquete propio — quien lo instale no recibe los tipos, se pierde todo el trabajo de tipado río abajo. | El archivo existe y queda empaquetado en el wheel (verificable en el ítem de CI de abajo). | pendiente |
-| Sacar `numpy` de dependencias (o vectorizar de verdad) | Ver 0.7/0C — cero usos confirmados. | Ver 0.7. | pendiente |
-| Alinear versión y narrativa | `0.1.0`/Beta vs README "v1.0 feature-complete". Mantener `0.x` hasta cerrar market conventions + validación externa + arquitectura de curva + API estable, y recién ahí reservar `1.0` para compromiso de estabilidad de API. Agregar tags/releases/CHANGELOG. | `pyproject.toml` y README describen la misma fase de madurez; existe al menos un tag/release. | pendiente |
-| `sys.path.insert()` en el Streamlit app | El demo debería consumir el paquete igual que cualquier usuario (`from fixed_income import ...` vía instalación editable), no hackear el path — señal de madurez de packaging. | El app importa el paquete instalado (editable install), sin manipular `sys.path`. | pendiente |
-| CI: cerrar el círculo | Sumar a lint+pytest actuales: `mypy`, coverage threshold, `python -m build`, instalar el wheel generado, smoke import, docs build. | Cada paso corre y falla el pipeline si no pasa. | pendiente |
-| `ruff format`, pre-commit, dependabot | | Configurados y verdes en CI. | pendiente |
-| Demo desplegado / GIF en README | Streamlit Community Cloud + GIF — mayor retorno por hora invertida para un repo con 0 estrellas, aunque no toca correctitud. | README enlaza un demo vivo y muestra un GIF. | pendiente |
-| PyPI | Hoy el README pide `git clone` — barrera de adopción si se quiere posicionar como librería. Ver Anexo (depende de si se persigue adopción externa o portfolio personal). | Paquete instalable con `pip install` desde PyPI. | pendiente |
-| Performance: cachear flujos, precomputar vector de `t` | `generate_schedule()` corre 2 veces por `analyze_bond`; `brentq` reprecia recalculando `year_fraction` en cada iteración. Sin tocar arquitectura, un orden de magnitud de mejora. Ver Anexo — números no re-verificados de forma independiente. | Profiling propio (no los números heredados de la primera crítica) documenta la mejora medida. | pendiente |
-| Política de redondeo por mercado / `Decimal` en montos | Hoy todo es `float` sin redondeo específico por convención de mercado. Ver Anexo — depende de si el objetivo es liquidación real o analítica. | Solo aplica si se persigue el caso de liquidación real (ver Anexo); montos usan `Decimal` bajo una política de redondeo documentada. | pendiente |
+| Ítem | Detalle | Issue | Criterio de hecho | Estado |
+|---|---|---|---|---|
+| `mypy` en CI | Está en `dev` deps, pasa limpio hoy, pero no corre en el pipeline. Ponerlo antes de que deje de pasar en silencio. | [#41](https://github.com/AMonten/fixed-income-lab/issues/41) | Un PR que introduce un error de tipos falla en CI. | pendiente |
+| `py.typed` | Falta en el paquete propio — quien lo instale no recibe los tipos, se pierde todo el trabajo de tipado río abajo. | [#42](https://github.com/AMonten/fixed-income-lab/issues/42) | El archivo existe y queda empaquetado en el wheel (verificable en el ítem de CI de abajo). | pendiente |
+| Sacar `numpy` de dependencias (o vectorizar de verdad) | Ver 0.7/0C — cero usos confirmados. | [#10](https://github.com/AMonten/fixed-income-lab/issues/10) (mismo issue que 0.7) | Ver 0.7. | pendiente |
+| Alinear versión y narrativa | `0.1.0`/Beta vs README "v1.0 feature-complete". Mantener `0.x` hasta cerrar market conventions + validación externa + arquitectura de curva + API estable, y recién ahí reservar `1.0` para compromiso de estabilidad de API. Agregar tags/releases/CHANGELOG. | [#43](https://github.com/AMonten/fixed-income-lab/issues/43) | `pyproject.toml` y README describen la misma fase de madurez; existe al menos un tag/release. | pendiente |
+| `sys.path.insert()` en el Streamlit app | El demo debería consumir el paquete igual que cualquier usuario (`from fixed_income import ...` vía instalación editable), no hackear el path — señal de madurez de packaging. | [#44](https://github.com/AMonten/fixed-income-lab/issues/44) | El app importa el paquete instalado (editable install), sin manipular `sys.path`. | pendiente |
+| CI: cerrar el círculo | Sumar a lint+pytest actuales: `mypy`, coverage threshold, `python -m build`, instalar el wheel generado, smoke import, docs build. | [#45](https://github.com/AMonten/fixed-income-lab/issues/45) | Cada paso corre y falla el pipeline si no pasa. | pendiente |
+| `ruff format`, pre-commit, dependabot | | [#46](https://github.com/AMonten/fixed-income-lab/issues/46) | Configurados y verdes en CI. | pendiente |
+| Demo desplegado / GIF en README | Streamlit Community Cloud + GIF — mayor retorno por hora invertida para un repo con 0 estrellas, aunque no toca correctitud. | [#47](https://github.com/AMonten/fixed-income-lab/issues/47) | README enlaza un demo vivo y muestra un GIF. | pendiente |
+| PyPI | Hoy el README pide `git clone` — barrera de adopción si se quiere posicionar como librería. Ver Anexo (depende de si se persigue adopción externa o portfolio personal). | [#48](https://github.com/AMonten/fixed-income-lab/issues/48) | Paquete instalable con `pip install` desde PyPI. | pendiente |
+| Performance: cachear flujos, precomputar vector de `t` | `generate_schedule()` corre 2 veces por `analyze_bond`; `brentq` reprecia recalculando `year_fraction` en cada iteración. Sin tocar arquitectura, un orden de magnitud de mejora. Ver Anexo — números no re-verificados de forma independiente. | [#49](https://github.com/AMonten/fixed-income-lab/issues/49) | Profiling propio (no los números heredados de la primera crítica) documenta la mejora medida. | pendiente |
+| Política de redondeo por mercado / `Decimal` en montos | Hoy todo es `float` sin redondeo específico por convención de mercado. Ver Anexo — depende de si el objetivo es liquidación real o analítica. | [#50](https://github.com/AMonten/fixed-income-lab/issues/50) | Solo aplica si se persigue el caso de liquidación real (ver Anexo); montos usan `Decimal` bajo una política de redondeo documentada. | pendiente |
 
 ### PR de higiene (primera PR sugerida — no bloqueante)
 
 Extraído de Bloque 0 y Bloque 6, para arrancar con algo chico y de retorno
 inmediato antes de meterse con Bloque 1: sacar `numpy` ([#10](https://github.com/AMonten/fixed-income-lab/issues/10)),
-agregar `py.typed`, `mypy` en CI y `--cov-fail-under` en CI ([#40](https://github.com/AMonten/fixed-income-lab/issues/40)),
+agregar `py.typed` ([#42](https://github.com/AMonten/fixed-income-lab/issues/42)),
+`mypy` en CI ([#41](https://github.com/AMonten/fixed-income-lab/issues/41)) y
+`--cov-fail-under` en CI ([#40](https://github.com/AMonten/fixed-income-lab/issues/40)),
 corregir el claim del DV01 en README y en el docstring de `risk/duration.py`
 ([#12](https://github.com/AMonten/fixed-income-lab/issues/12)), crear el test
 `xfail` del par ([#4](https://github.com/AMonten/fixed-income-lab/issues/4)).
@@ -340,31 +342,36 @@ tiene.
 - **Números de performance** (`analyze_bond` ~2.7ms, YTM solve ~3ms, ~15s para
   repreciar 5.000 posiciones) — vienen de la primera crítica, no los reproduje yo
   mismo con profiling. Antes de tratarlos como bug de performance, correr un
-  profile propio.
+  profile propio. ([#49](https://github.com/AMonten/fixed-income-lab/issues/49))
 - **¿Se persigue adopción externa (PyPI, estrellas, README con GIF) o es
   primariamente pieza de portafolio?** Cambia la prioridad relativa de Bloque 6
-  (empaquetado/demo) vs Bloque 0/1/5 (correctitud).
+  (empaquetado/demo) vs Bloque 0/1/5 (correctitud). ([#47](https://github.com/AMonten/fixed-income-lab/issues/47), [#48](https://github.com/AMonten/fixed-income-lab/issues/48))
 - **Decimal vs float para montos**: solo importa si en algún momento el objetivo
   pasa de "analítica" a "liquidación real". Sin confirmar cuál es el caso, no vale
-  la pena el esfuerzo de introducir `Decimal` en la capa de montos.
+  la pena el esfuerzo de introducir `Decimal` en la capa de montos. ([#50](https://github.com/AMonten/fixed-income-lab/issues/50))
 - **Alcance de calendario de feriados**: si la decisión del Bloque 7 es la
-  especialización LatAm, el calendario configurable del Bloque 1 necesita
+  especialización LatAm, el calendario configurable del Bloque 1
+  ([#18](https://github.com/AMonten/fixed-income-lab/issues/18)) necesita
   feriados de plazas LatAm específicas (no solo un `Calendar` genérico tipo
   US/UK). Afecta el diseño del objeto `Calendar`, no solo su existencia.
 - **`reset_lag_days` como "2 días hábiles bajo calendario de fixing"**: correcto
-  como crítica (0.8 es un bug confirmado independientemente de esto), pero qué
-  calendario de fixing usar (SOFR, o el que aplique) depende de qué índices de
-  referencia se planea soportar — no decidido.
-- **mypy `--strict` o baseline**: ambas críticas piden "mypy en CI" pero no
+  como crítica (0.8/[#11](https://github.com/AMonten/fixed-income-lab/issues/11)
+  es un bug confirmado independientemente de esto), pero qué calendario de
+  fixing usar (SOFR, o el que aplique) depende de qué índices de referencia se
+  planea soportar — no decidido.
+- **mypy `--strict` o baseline**: ambas críticas piden "mypy en CI"
+  ([#41](https://github.com/AMonten/fixed-income-lab/issues/41)) pero no
   especifican nivel de estrictez. Confirmar antes de fijar la config en CI para no
   tener que revertir luego.
-- **PyPI**: mencionado como brecha de adopción por la primera crítica, pero con
+- **PyPI** ([#48](https://github.com/AMonten/fixed-income-lab/issues/48)):
+  mencionado como brecha de adopción por la primera crítica, pero con
   0 estrellas y sin decidir el eje de diferenciación (Bloque 7), publicar ahora
   podría ser prematuro — mejor evaluarlo después de esa decisión.
-- **Alcance real de "Market object"**: es el cambio arquitectónico más grande
-  propuesto (Bloque 3). Antes de empezarlo, vale confirmar que no es sobre-ingeniería
-  para el tamaño actual del proyecto — depende directamente de qué tan lejos se
-  quiere llevar FRN/curve-risk, que a su vez depende del Bloque 7.
+- **Alcance real de "Market object"** ([#28](https://github.com/AMonten/fixed-income-lab/issues/28)):
+  es el cambio arquitectónico más grande propuesto (Bloque 3). Antes de
+  empezarlo, vale confirmar que no es sobre-ingeniería para el tamaño actual
+  del proyecto — depende directamente de qué tan lejos se quiere llevar
+  FRN/curve-risk, que a su vez depende del Bloque 7.
 
 ---
 

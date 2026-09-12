@@ -305,7 +305,7 @@ pytest --cov=fixed_income --cov-report=term-missing   # with coverage
 ruff check src/ tests/ app/                     # lint
 ```
 
-115 tests cover day-count conventions, schedule generation (including stub
+118 tests cover day-count conventions, schedule generation (including stub
 periods, month-end clamping, business-day rolls), accrued-interest edge cases
 (on the issue date, on a coupon date, before issue, on/after maturity), price/
 yield round-tripping, duration/convexity accuracy (verified against a Taylor
@@ -324,6 +324,10 @@ use**. Specific, deliberate V1 simplifications:
   cum-coupon.
 - **No market-curve bootstrapping.** `YieldCurve` interpolates a hand-specified
   set of zero rates; it does not construct a curve from instrument quotes.
+- **`LOG_LINEAR` curve interpolation requires strictly positive zero rates.**
+  It interpolates in log-rate space, so it raises `ValueError` if either
+  pillar rate bracketing a query is zero or negative (e.g. a negative-rate
+  curve) — use `LINEAR` or `FLAT` interpolation for those.
 - **Floating-rate note duration is a known simplification.** Because the forward
   assumption used to fix an FRN's cash flows isn't linked to the yield being
   shocked, discounting those (now-fixed) cash flows at a different yield

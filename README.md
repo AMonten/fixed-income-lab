@@ -345,15 +345,26 @@ use**. Specific, deliberate V1 simplifications:
 
 ## Roadmap
 
-V1 is feature-complete per the instruments listed above. Future versions may add:
+This project is pre-1.0 (`0.1.0`, Beta) and under active development, not
+feature-complete. Full planning — dependencies, rationale, open decisions — lives
+in [`ROADMAP.md`](ROADMAP.md); this section only mirrors current scope via GitHub
+milestones, updated after execution rather than before.
 
-- Callable bonds (embedded call optionality)
-- MBS pass-throughs (prepayment-model-driven factor paydown)
-- CMO tranches (waterfall/structuring on top of a pool)
-- Structured notes
+| Milestone | Focus | Open issues |
+|---|---|---|
+| [v0.1.1 — Correctness](https://github.com/AMonten/fixed-income-lab/milestone/1) | Confirmed math/API bugs, silent-truncation defects, false claims in docs | 12 |
+| [v0.2.0 — Market Conventions](https://github.com/AMonten/fixed-income-lab/milestone/2) | Street-yield vs curve time semantics, ACT/ACT ICMA/ISDA, configurable calendar, `ScheduleSpec` | 8 |
+| [v0.3.0 — Reference Validated](https://github.com/AMonten/fixed-income-lab/milestone/3) | Independent reference fixtures, analytical invariants, property-based tests | 3 |
+| [v0.4.0 — Curve Architecture](https://github.com/AMonten/fixed-income-lab/milestone/4) | Date→discount-factor curve, bootstrap, `Market` object | 5 |
 
-...but only once each represents a genuinely new modelling challenge, not as an
-open-ended feature list. Past v1.0 this project moves into maintenance mode.
+19 further [open issues](https://github.com/AMonten/fixed-income-lab/issues) —
+portfolio aggregation, spread risk, FRN provenance, packaging/CI, demo/PyPI — are
+tracked but not yet scheduled into a milestone; several depend on the strategic
+differentiation decision or other open questions in `ROADMAP.md`'s Anexo.
+
+Not being pursued yet: callable bonds, MBS pass-throughs, CMO tranches, structured
+notes, swaps — see `ROADMAP.md` Bloque 7 for why (instrument scope is gated on that
+same unresolved decision, not open-ended backlog).
 
 ## License
 

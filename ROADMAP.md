@@ -209,12 +209,12 @@ nada.
 > ningún ítem de este roadmap se marca `hecho` sin al menos un test de referencia
 > independiente cuando existe un benchmark externo aplicable.
 
-| Ítem | Detalle | Criterio de hecho | Estado |
-|---|---|---|---|
-| `tests/reference/` — validación de referencia | Para cada instrumento: inputs, expected clean/dirty/accrued/YTM/duration/convexity/cash flows, y la fuente de referencia declarada por fixture — "golden tests contra QuantLib" se renombra porque QuantLib no es la referencia adecuada para todo. Formato del fixture: `reference.engine`, `reference.version`, `reference.convention`, `tolerance.price`, `tolerance.yield`. Fuentes válidas: QuantLib, ejemplo trabajado de ICMA, ejemplo publicado por el Tesoro, caso analítico derivado a mano, caso de cash flow conocido de vendor. QuantLib (u otro motor externo) solo como dependencia de test/dev, no runtime. Casos mínimos a cubrir (ver Bloque 1): US Treasury, bono EUR bajo ACT/ACT ICMA, primer cupón irregular, último cupón irregular, año bisiesto. Indicadores a subir al README en vez de perseguir cobertura: `118 tests / 97% coverage / N casos de referencia independientes / M convenciones validadas`, y más adelante desviación máxima de precio y de yield contra referencia. | Cada instrumento soportado tiene ≥1 fixture con los campos de arriba, corriendo en CI dentro de la tolerancia declarada. | pendiente |
-| Invariantes analíticas | par→100 en fecha de cupón (mismo test que 0.1); precio monótono decreciente en yield; convexidad ≥ 0 con flujos positivos; `sum(principal) == face` (donde aplique — ver 0.5); `dirty == clean + accrued`; `factor ∈ [0,1]`; `DV01 ≈ D_mod·P·1e-4` dentro de tolerancia. | Cada invariante tiene un test explícito en CI. | pendiente |
-| Property-based testing con `hypothesis` | Generación de schedules: stubs, fin de mes, años bisiestos, frecuencias mixtas — encuentra edge cases que los tests example-based no encuentran. | Al menos la generación de schedules tiene tests basados en `hypothesis` corriendo en CI. | pendiente |
-| `--cov-fail-under` en CI | Evitar regresión silenciosa de cobertura. | Un PR que baja cobertura por debajo del umbral falla en CI. | pendiente |
+| Ítem | Detalle | Issue | Criterio de hecho | Estado |
+|---|---|---|---|---|
+| `tests/reference/` — validación de referencia | Para cada instrumento: inputs, expected clean/dirty/accrued/YTM/duration/convexity/cash flows, y la fuente de referencia declarada por fixture — "golden tests contra QuantLib" se renombra porque QuantLib no es la referencia adecuada para todo. Formato del fixture: `reference.engine`, `reference.version`, `reference.convention`, `tolerance.price`, `tolerance.yield`. Fuentes válidas: QuantLib, ejemplo trabajado de ICMA, ejemplo publicado por el Tesoro, caso analítico derivado a mano, caso de cash flow conocido de vendor. QuantLib (u otro motor externo) solo como dependencia de test/dev, no runtime. Casos mínimos a cubrir (ver Bloque 1): US Treasury, bono EUR bajo ACT/ACT ICMA, primer cupón irregular, último cupón irregular, año bisiesto. Indicadores a subir al README en vez de perseguir cobertura: `118 tests / 97% coverage / N casos de referencia independientes / M convenciones validadas`, y más adelante desviación máxima de precio y de yield contra referencia. | [#37](https://github.com/AMonten/fixed-income-lab/issues/37) | Cada instrumento soportado tiene ≥1 fixture con los campos de arriba, corriendo en CI dentro de la tolerancia declarada. | pendiente |
+| Invariantes analíticas | par→100 en fecha de cupón (mismo test que 0.1); precio monótono decreciente en yield; convexidad ≥ 0 con flujos positivos; `sum(principal) == face` (donde aplique — ver 0.5); `dirty == clean + accrued`; `factor ∈ [0,1]`; `DV01 ≈ D_mod·P·1e-4` dentro de tolerancia. | [#38](https://github.com/AMonten/fixed-income-lab/issues/38) | Cada invariante tiene un test explícito en CI. | pendiente |
+| Property-based testing con `hypothesis` | Generación de schedules: stubs, fin de mes, años bisiestos, frecuencias mixtas — encuentra edge cases que los tests example-based no encuentran. | [#39](https://github.com/AMonten/fixed-income-lab/issues/39) | Al menos la generación de schedules tiene tests basados en `hypothesis` corriendo en CI. | pendiente |
+| `--cov-fail-under` en CI | Evitar regresión silenciosa de cobertura. | [#40](https://github.com/AMonten/fixed-income-lab/issues/40) | Un PR que baja cobertura por debajo del umbral falla en CI. | pendiente |
 
 ---
 
@@ -237,12 +237,15 @@ nada.
 ### PR de higiene (primera PR sugerida — no bloqueante)
 
 Extraído de Bloque 0 y Bloque 6, para arrancar con algo chico y de retorno
-inmediato antes de meterse con Bloque 1: sacar `numpy`, agregar `py.typed`,
-`mypy` y `--cov-fail-under` en CI, corregir el claim del DV01 en README y en el
-docstring de `risk/duration.py`, crear el test `xfail` del par (0.1). Cierra seis
-filas (0.7, `py.typed`, `mypy` en CI, `--cov-fail-under`, 0.9, 0.1) y no bloquea
-nada. *(La acción "crear los issues #4–#12" que figuraba originalmente en este
-batch ya no aplica: se verificó que los nueve ya existen en GitHub.)*
+inmediato antes de meterse con Bloque 1: sacar `numpy` ([#10](https://github.com/AMonten/fixed-income-lab/issues/10)),
+agregar `py.typed`, `mypy` en CI y `--cov-fail-under` en CI ([#40](https://github.com/AMonten/fixed-income-lab/issues/40)),
+corregir el claim del DV01 en README y en el docstring de `risk/duration.py`
+([#12](https://github.com/AMonten/fixed-income-lab/issues/12)), crear el test
+`xfail` del par ([#4](https://github.com/AMonten/fixed-income-lab/issues/4)).
+Cierra seis filas (0.7, `py.typed`, `mypy` en CI, `--cov-fail-under`, 0.9, 0.1)
+y no bloquea nada. *(La acción "crear los issues #4–#12" que figuraba
+originalmente en este batch ya no aplica: se verificó que los nueve ya existen
+en GitHub.)*
 
 ---
 

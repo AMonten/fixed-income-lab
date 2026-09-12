@@ -92,6 +92,30 @@ def test_yield_curve_flat_interpolation_holds_left_pillar():
     assert curve.zero_rate(2.9) == pytest.approx(0.02)
 
 
+def test_yield_curve_log_linear_rejects_negative_bracketing_rate():
+    curve = YieldCurve(
+        tenors=(1.0, 5.0), zero_rates=(-0.001, 0.02), interpolation=Interpolation.LOG_LINEAR
+    )
+    with pytest.raises(ValueError, match="strictly positive"):
+        curve.zero_rate(3.0)
+
+
+def test_yield_curve_log_linear_rejects_zero_bracketing_rate():
+    curve = YieldCurve(tenors=(1.0, 5.0), zero_rates=(0.0, 0.02), interpolation=Interpolation.LOG_LINEAR)
+    with pytest.raises(ValueError, match="strictly positive"):
+        curve.zero_rate(3.0)
+
+
+def test_yield_curve_log_linear_allows_positive_rates_outside_bracket():
+    # A negative/zero rate elsewhere on the curve is fine as long as it
+    # doesn't bracket the queried tenor.
+    curve = YieldCurve(
+        tenors=(1.0, 3.0, 5.0), zero_rates=(-0.001, 0.02, 0.03), interpolation=Interpolation.LOG_LINEAR
+    )
+    expected = math.exp(math.log(0.02) * 0.5 + math.log(0.03) * 0.5)
+    assert curve.zero_rate(4.0) == pytest.approx(expected)
+
+
 def test_present_value_from_curve_uses_per_maturity_zero_rate():
     bond = Bond(100.0, 0.0, date(2020, 1, 15), date(2025, 1, 15), day_count=Actual365Fixed())
     settlement = bond.issue_date

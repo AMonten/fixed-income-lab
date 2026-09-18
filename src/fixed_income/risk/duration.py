@@ -42,7 +42,7 @@ from datetime import date
 
 from ..cashflows.generator import CashFlow, cash_flows_after
 from ..conventions.day_count import DayCountConvention
-from ..pricing.yield_convention import CompoundingConvention, YieldConvention
+from ..pricing.yield_convention import CompoundingConvention, YieldConvention, yield_time_fractions
 from ..pricing.yield_solver import price_from_yield
 
 _BUMP = 1e-4  # one basis point
@@ -55,11 +55,16 @@ def macaulay_duration(
     yield_convention: YieldConvention,
     day_count: DayCountConvention,
 ) -> float:
-    """Macaulay duration, in years."""
+    """Macaulay duration, in years.
+
+    Times each cash flow per ``yield_convention.time_convention`` — street
+    quasi-coupon counting by default, matching how ``y`` itself is quoted.
+    """
+    remaining = cash_flows_after(cash_flows, settlement_date)
+    times = yield_time_fractions(cash_flows, settlement_date, day_count, yield_convention)
     pv_total = 0.0
     weighted_t = 0.0
-    for cf in cash_flows_after(cash_flows, settlement_date):
-        t = day_count.year_fraction(settlement_date, cf.payment_date)
+    for cf, t in zip(remaining, times, strict=True):
         pv = cf.total * yield_convention.discount_factor(y, t)
         pv_total += pv
         weighted_t += t * pv

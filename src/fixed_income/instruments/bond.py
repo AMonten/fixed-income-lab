@@ -58,7 +58,9 @@ class Bond:
 
     def cash_flows(self) -> list[CashFlow]:
         """Full cash-flow list from issue to maturity."""
-        return generate_bullet_cashflows(self.face_value, self.coupon_rate, self.schedule(), self.day_count)
+        return generate_bullet_cashflows(
+            self.face_value, self.coupon_rate, self.schedule(), self.day_count, self.frequency
+        )
 
     def cash_flows_after(self, settlement_date: date) -> list[CashFlow]:
         """Cash flows still owed as of ``settlement_date`` (payment date strictly after it)."""

@@ -38,20 +38,22 @@ def test_par_bond_prices_near_100_when_yield_equals_coupon(bond):
     assert price == pytest.approx(100.0, abs=0.05)
 
 
-@pytest.mark.xfail(
-    reason=(
-        "present_value discounts to the business-day-adjusted payment_date instead of "
-        "the yield convention's unadjusted coupon-period time; a coupon falling on a "
-        "weekend (see the bond fixture) inflates the discount exponent and biases price "
-        "away from par. Fixed by Bloque 1's Accrual/Yield/DiscountCurve split (issue #4)."
-    ),
-    strict=True,
-)
 def test_par_bond_prices_to_exactly_100(bond):
     settlement = bond.issue_date
     cfs, yc = _cfs_and_yc(bond, settlement)
     price = price_from_yield(cfs, bond.face_value, settlement, bond.coupon_rate, yc, bond.day_count)
     assert price == pytest.approx(100.0, abs=1e-9)
+
+
+def test_true_yield_discounts_to_adjusted_payment_date(bond):
+    """TRUE yield is the pre-fix behavior, kept as an explicit, named option:
+    it can reproduce the par-pricing bias from a weekend coupon date, unlike
+    the STREET default (see test_par_bond_prices_to_exactly_100)."""
+    settlement = bond.issue_date
+    cfs = bond.cash_flows_after(settlement)
+    yc = YieldConvention.true_yield(bond.frequency)
+    price = price_from_yield(cfs, bond.face_value, settlement, bond.coupon_rate, yc, bond.day_count)
+    assert price != pytest.approx(100.0, abs=1e-9)
 
 
 def test_higher_yield_implies_lower_price(bond):

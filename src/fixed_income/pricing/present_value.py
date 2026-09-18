@@ -17,7 +17,7 @@ from datetime import date
 
 from ..cashflows.generator import CashFlow, cash_flows_after
 from ..conventions.day_count import DayCountConvention
-from .yield_convention import YieldConvention
+from .yield_convention import YieldConvention, yield_time_fractions
 
 DiscountFactorFn = Callable[[float], float]
 
@@ -31,7 +31,13 @@ def present_value(
     """PV, as of ``settlement_date``, of all cash flows paid strictly after it.
 
     ``discount_factor(t)`` returns the discount factor for a cash flow
-    ``t`` years away, where ``t`` is measured using ``day_count``.
+    ``t`` years away, where ``t`` is measured using ``day_count`` against the
+    cash flow's actual (adjusted) ``payment_date``. This is the right notion
+    of time for curve-based discounting — money received on a real date is
+    discounted from now to that real date. It is deliberately *not* used for
+    yield-based pricing (see :func:`present_value_from_yield`), whose quoted
+    convention counts coupon periods rather than calendar time to the
+    adjusted payment date.
     """
     total = 0.0
     for cf in cash_flows_after(cash_flows, settlement_date):
@@ -47,9 +53,17 @@ def present_value_from_yield(
     yield_convention: YieldConvention,
     day_count: DayCountConvention,
 ) -> float:
-    """PV discounting every cash flow at a single flat yield ``y``."""
-    return present_value(
-        cash_flows, settlement_date, lambda t: yield_convention.discount_factor(y, t), day_count
+    """PV discounting every cash flow at a single flat yield ``y``.
+
+    Unlike :func:`present_value`, this does not discount to the actual
+    payment date: it times each cash flow per ``yield_convention.time_convention``
+    (street quasi-coupon counting by default; see
+    :mod:`fixed_income.pricing.yield_convention`).
+    """
+    remaining = cash_flows_after(cash_flows, settlement_date)
+    times = yield_time_fractions(cash_flows, settlement_date, day_count, yield_convention)
+    return sum(
+        cf.total * yield_convention.discount_factor(y, t) for cf, t in zip(remaining, times, strict=True)
     )
 
 

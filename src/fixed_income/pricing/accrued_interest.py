@@ -7,9 +7,11 @@ bond's yield or price:
 
 ``accrued_interest = full_period_coupon * (accrued_days / period_days)``
 
-where both day counts use the bond's own day-count convention, so ACT/360,
-ACT/365, and 30/360 bonds each accrue consistently with how their coupons
-are sized in the first place.
+``full_period_coupon`` is read directly off the bond's own cash flows
+(:mod:`fixed_income.cashflows.generator`) rather than recomputed here, so
+accrued interest always agrees with the coupon that actually gets paid —
+whether that period is a flat regular coupon or a day-count-prorated stub.
+``accrued_days``/``period_days`` use the bond's own day-count convention.
 
 All values are expressed per 100 par, matching clean/dirty price quoting.
 
@@ -65,22 +67,22 @@ def compute_accrued_interest(bond: Bond, settlement_date: date) -> AccruedIntere
             "no coupon period is active"
         )
 
-    period = next(p for p in bond.schedule() if p.accrual_start <= settlement_date < p.accrual_end)
+    cash_flow = next(
+        cf for cf in bond.cash_flows() if cf.accrual_start <= settlement_date < cf.accrual_end
+    )
     day_count = bond.day_count
 
-    accrued_days = day_count.day_count(period.accrual_start, settlement_date)
-    period_days = day_count.day_count(period.accrual_start, period.accrual_end)
+    accrued_days = day_count.day_count(cash_flow.accrual_start, settlement_date)
+    period_days = day_count.day_count(cash_flow.accrual_start, cash_flow.accrual_end)
     accrued_fraction = accrued_days / period_days if period_days else 0.0
 
-    full_period_coupon = bond.coupon_rate * 100.0 * day_count.year_fraction(
-        period.accrual_start, period.accrual_end
-    )
+    full_period_coupon = cash_flow.coupon
     accrued = full_period_coupon * accrued_fraction
 
     return AccruedInterestResult(
-        accrual_start=period.accrual_start,
+        accrual_start=cash_flow.accrual_start,
         settlement_date=settlement_date,
-        accrual_end=period.accrual_end,
+        accrual_end=cash_flow.accrual_end,
         accrued_days=accrued_days,
         period_days=period_days,
         accrued_fraction=accrued_fraction,

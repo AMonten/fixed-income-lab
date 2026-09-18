@@ -34,11 +34,11 @@ def test_price_per_100_rescales_by_face_value():
     assert price_per_100(100.0, 100.0) == pytest.approx(100.0)
 
 
-def test_present_value_from_yield_matches_manual_discounting():
+def test_present_value_from_true_yield_matches_manual_discounting_to_payment_date():
     bond = Bond(100.0, 0.05, date(2020, 1, 15), date(2022, 1, 15), day_count=Actual365Fixed())
     settlement = bond.issue_date
     cfs = bond.cash_flows_after(settlement)
-    yc = YieldConvention.street(bond.frequency)
+    yc = YieldConvention.true_yield(bond.frequency)
     pv = present_value_from_yield(cfs, settlement, 0.05, yc, bond.day_count)
 
     manual = sum(
@@ -46,6 +46,27 @@ def test_present_value_from_yield_matches_manual_discounting():
         for cf in cfs
     )
     assert pv == pytest.approx(manual)
+
+
+def test_present_value_from_street_yield_matches_hand_derived_quasi_coupon_pricing():
+    """Reference case: derivation.engine=manual (ICMA quasi-coupon pricing
+    formula), tolerance=1e-9. A semi-annual bond settling exactly mid-way
+    through its first coupon period, priced at a yield away from the coupon,
+    should match ``P = sum(CF_k / (1 + y/m)^(w+k))`` computed independently
+    of the library, with ``w`` the fraction of the current period remaining.
+    """
+    bond = Bond(100.0, 0.06, date(2020, 1, 15), date(2022, 1, 15), day_count=Actual365Fixed())
+    settlement = date(2020, 4, 15)  # exactly halfway between the Jan 15 and Jul 15 coupon dates
+    cfs = bond.cash_flows_after(settlement)
+    yc = YieldConvention.street(bond.frequency)
+    y = 0.08
+
+    w = 0.5
+    m = bond.frequency.periods_per_year
+    expected = sum(cf.total / (1 + y / m) ** (w + k) for k, cf in enumerate(cfs))
+
+    pv = present_value_from_yield(cfs, settlement, y, yc, bond.day_count)
+    assert pv == pytest.approx(expected, rel=1e-9)
 
 
 def test_present_value_with_zero_discount_factor_equals_sum_of_flows():

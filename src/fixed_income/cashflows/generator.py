@@ -5,6 +5,26 @@ into concrete, per-100-face cash amounts: coupon, principal repayment, and
 the resulting remaining principal. Every :class:`CashFlow` is derived
 deterministically from its inputs, so the same schedule and rate always
 produce the same numbers — this is what makes the schedules testable.
+
+Coupon sizing — regular periods vs. stubs
+------------------------------------------
+
+A *regular* fixed-rate coupon (one whose accrual span is exactly one nominal
+step of the bond's own frequency, e.g. exactly 6 calendar months for a
+semi-annual bond) is a fixed dollar amount, ``face_value * coupon_rate /
+frequency`` — real bonds pay that flat amount regardless of how many actual
+calendar days a given 6-month span happens to contain (182, 183, or 184).
+Day-count conventions size *stub* periods (an irregular first period when
+the bond's life isn't an exact multiple of its frequency) and compute
+accrued interest between coupon dates — they do not resize a regular
+coupon.
+
+Passing ``frequency`` to :func:`generate_variable_rate_cashflows` opts into
+this: regular periods get the flat amount, and only genuine stubs fall back
+to day-count proration. Without it (the default), every period is
+day-count-prorated — correct for money-market floating-rate notes, whose
+coupon genuinely is ``rate * actual_days/360`` each period, but wrong for a
+fixed-rate bond's regular coupons.
 """
 
 from __future__ import annotations
@@ -13,8 +33,9 @@ from dataclasses import dataclass
 from datetime import date
 
 from ..conventions.day_count import DayCountConvention
+from ..conventions.frequency import Frequency
 from .schedule import BusinessDayConvention as _BusinessDayConvention
-from .schedule import SchedulePeriod, adjust_business_day
+from .schedule import SchedulePeriod, add_months, adjust_business_day
 
 
 @dataclass(frozen=True)
@@ -47,11 +68,31 @@ class CashFlow:
         return self.coupon + self.principal
 
 
+def _is_regular_period(period: SchedulePeriod, frequency: Frequency) -> bool:
+    """Whether ``period`` spans exactly one nominal step of ``frequency``
+    (as opposed to a stub, produced when the schedule's life isn't an exact
+    multiple of the frequency's step)."""
+    return add_months(period.accrual_start, frequency.months_between_payments) == period.accrual_end
+
+
+def _coupon_amount(
+    face_value: float,
+    coupon_rate: float,
+    period: SchedulePeriod,
+    day_count: DayCountConvention,
+    frequency: Frequency | None,
+) -> float:
+    if frequency is not None and _is_regular_period(period, frequency):
+        return face_value * coupon_rate / frequency.periods_per_year
+    return face_value * coupon_rate * day_count.year_fraction(period.accrual_start, period.accrual_end)
+
+
 def generate_variable_rate_cashflows(
     face_value: float,
     coupon_rates: list[float],
     schedule: list[SchedulePeriod],
     day_count: DayCountConvention,
+    frequency: Frequency | None = None,
 ) -> list[CashFlow]:
     """Cash flows for a non-amortizing ("bullet") bond with one coupon rate per period.
 
@@ -60,6 +101,11 @@ def generate_variable_rate_cashflows(
     different (reference rate + spread) per period. Principal stays at
     ``face_value`` until the final period, which repays it in full
     alongside the last coupon.
+
+    ``frequency``, when given, sizes each *regular* period's coupon as the
+    flat ``face_value * coupon_rate / frequency`` rather than day-count
+    proration (see module docstring). Leave it ``None`` for a floating-rate
+    note, whose coupon is genuinely day-count-accrued every period.
     """
     if len(coupon_rates) != len(schedule):
         raise ValueError(
@@ -69,8 +115,7 @@ def generate_variable_rate_cashflows(
     cash_flows = []
     last_index = len(schedule) - 1
     for period, coupon_rate in zip(schedule, coupon_rates, strict=True):
-        year_fraction = day_count.year_fraction(period.accrual_start, period.accrual_end)
-        coupon = face_value * coupon_rate * year_fraction
+        coupon = _coupon_amount(face_value, coupon_rate, period, day_count, frequency)
         is_final = period.period_index == last_index
         principal = face_value if is_final else 0.0
         cash_flows.append(
@@ -93,13 +138,17 @@ def generate_bullet_cashflows(
     coupon_rate: float,
     schedule: list[SchedulePeriod],
     day_count: DayCountConvention,
+    frequency: Frequency | None = None,
 ) -> list[CashFlow]:
     """Cash flows for a non-amortizing ("bullet") fixed-rate bond.
 
     Principal stays at ``face_value`` until the final period, which repays
-    it in full alongside the last coupon.
+    it in full alongside the last coupon. See
+    :func:`generate_variable_rate_cashflows` for ``frequency``.
     """
-    return generate_variable_rate_cashflows(face_value, [coupon_rate] * len(schedule), schedule, day_count)
+    return generate_variable_rate_cashflows(
+        face_value, [coupon_rate] * len(schedule), schedule, day_count, frequency
+    )
 
 
 def generate_zero_coupon_cashflow(

@@ -29,7 +29,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from ..instruments.bond import Bond
+from ..instruments.bond import Bond, ZeroCouponBond
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,7 @@ class AccruedInterestResult:
     accrued_interest: float
 
 
-def compute_accrued_interest(bond: Bond, settlement_date: date) -> AccruedInterestResult:
+def compute_accrued_interest(bond: Bond | ZeroCouponBond, settlement_date: date) -> AccruedInterestResult:
     """Compute accrued interest for ``bond`` as of ``settlement_date``, per 100 par."""
     if settlement_date < bond.issue_date:
         raise ValueError(f"settlement_date {settlement_date} is before issue_date {bond.issue_date}")

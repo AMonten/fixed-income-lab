@@ -40,7 +40,7 @@ def test_bond_previous_and_next_coupon_date():
 
 
 def test_zero_coupon_bond_has_single_cash_flow_and_zero_coupon_rate():
-    zcb = ZeroCouponBond(100.0, 0.05, date(2020, 1, 15), date(2025, 1, 15))
+    zcb = ZeroCouponBond(100.0, date(2020, 1, 15), date(2025, 1, 15))
     assert zcb.coupon_rate == 0.0
     cfs = zcb.cash_flows()
     assert len(cfs) == 1
@@ -48,8 +48,25 @@ def test_zero_coupon_bond_has_single_cash_flow_and_zero_coupon_rate():
     assert cfs[0].payment_date == date(2025, 1, 15)
 
 
+def test_zero_coupon_bond_constructor_rejects_coupon_rate():
+    """Regression for #7: a zero-coupon bond has no coupon rate to configure,
+    so unlike Bond, its constructor must not silently accept and discard one."""
+    with pytest.raises(TypeError):
+        ZeroCouponBond(100.0, 0.05, date(2020, 1, 15), date(2025, 1, 15))  # type: ignore[call-arg]
+
+
+def test_zero_coupon_bond_schedule_and_cash_flows_agree_on_payment_date():
+    """Regression for #7: schedule() and cash_flows() used to disagree when the
+    unadjusted maturity date falls on a weekend -- schedule() returned it
+    unadjusted while cash_flows() rolled it to the next business day."""
+    zcb = ZeroCouponBond(100.0, date(2020, 1, 15), date(2025, 1, 18))  # 2025-01-18 is a Saturday
+    schedule_payment_date = zcb.schedule()[0].payment_date
+    cash_flow_payment_date = zcb.cash_flows()[0].payment_date
+    assert schedule_payment_date == cash_flow_payment_date == date(2025, 1, 20)  # rolled to Monday
+
+
 def test_zero_coupon_bond_schedule_is_single_period():
-    zcb = ZeroCouponBond(100.0, 0.0, date(2020, 1, 15), date(2025, 1, 15))
+    zcb = ZeroCouponBond(100.0, date(2020, 1, 15), date(2025, 1, 15))
     schedule = zcb.schedule()
     assert len(schedule) == 1
     assert schedule[0].accrual_start == zcb.issue_date

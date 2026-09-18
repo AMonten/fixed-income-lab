@@ -21,7 +21,7 @@ from datetime import date
 
 from .cashflows.generator import CashFlow
 from .conventions.day_count import DayCountConvention
-from .instruments.bond import Bond
+from .instruments.bond import Bond, ZeroCouponBond
 from .pricing.accrued_interest import compute_accrued_interest
 from .pricing.yield_convention import YieldConvention
 from .pricing.yield_solver import price_from_yield, solve_yield_to_maturity
@@ -111,7 +111,7 @@ def analyze_cash_flows(
 
 
 def analyze_bond(
-    bond: Bond,
+    bond: Bond | ZeroCouponBond,
     settlement_date: date,
     *,
     yield_convention: YieldConvention | None = None,

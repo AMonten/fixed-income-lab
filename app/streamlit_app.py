@@ -69,7 +69,7 @@ with st.sidebar:
         accrued_supported = True
 
     elif instrument_type == "Zero-Coupon Bond":
-        security = ZeroCouponBond(face_value, 0.0, issue_date, maturity_date, frequency, day_count)
+        security = ZeroCouponBond(face_value, issue_date, maturity_date, frequency, day_count)
         accrued_supported = True
 
     elif instrument_type == "Floating-Rate Note":
@@ -166,7 +166,7 @@ with tab_price:
             clean_price_input = st.number_input("Clean price (per 100 par)", value=100.0, step=0.25)
 
     try:
-        if isinstance(security, Bond):
+        if isinstance(security, (Bond, ZeroCouponBond)):
             result = analyze_bond(
                 security, settlement_date, yield_convention=yield_convention,
                 yield_to_maturity=ytm_input, clean_price=clean_price_input,

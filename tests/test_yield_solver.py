@@ -65,7 +65,7 @@ def test_higher_yield_implies_lower_price(bond):
 
 
 def test_zero_coupon_bond_prices_below_par_for_positive_yield():
-    zcb = ZeroCouponBond(100.0, 0.0, date(2020, 1, 15), date(2030, 1, 15))
+    zcb = ZeroCouponBond(100.0, date(2020, 1, 15), date(2030, 1, 15))
     settlement = zcb.issue_date
     cfs, yc = zcb.cash_flows_after(settlement), YieldConvention.street(zcb.frequency)
     price = price_from_yield(cfs, zcb.face_value, settlement, 0.05, yc, zcb.day_count)

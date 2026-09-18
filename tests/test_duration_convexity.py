@@ -22,7 +22,7 @@ def bond():
 
 
 def test_zero_coupon_bond_macaulay_duration_equals_time_to_maturity():
-    zcb = ZeroCouponBond(100.0, 0.0, date(2020, 1, 15), date(2030, 1, 15), day_count=Actual365Fixed())
+    zcb = ZeroCouponBond(100.0, date(2020, 1, 15), date(2030, 1, 15), day_count=Actual365Fixed())
     settlement = zcb.issue_date
     cfs = zcb.cash_flows_after(settlement)
     yc = YieldConvention.street(zcb.frequency)

@@ -18,7 +18,12 @@ from ..cashflows.generator import (
     generate_bullet_cashflows,
     generate_zero_coupon_cashflow,
 )
-from ..cashflows.schedule import BusinessDayConvention, SchedulePeriod, generate_schedule
+from ..cashflows.schedule import (
+    BusinessDayConvention,
+    SchedulePeriod,
+    adjust_business_day,
+    generate_schedule,
+)
 from ..conventions.day_count import Actual365Fixed, DayCountConvention
 from ..conventions.frequency import Frequency
 
@@ -85,18 +90,40 @@ class Bond:
 
 
 @dataclass
-class ZeroCouponBond(Bond):
+class ZeroCouponBond:
     """A zero-coupon bond: a single redemption payment at maturity, no periodic coupons.
 
-    ``coupon_rate`` is forced to ``0`` and ``frequency`` is retained only as
-    the compounding-frequency assumption used when quoting a yield to
-    maturity on a street/periodic basis (see
-    :mod:`fixed_income.pricing.yield_convention`).
+    Deliberately *not* a :class:`Bond` subclass: a zero-coupon bond has no
+    coupon rate to configure, and inheriting from ``Bond`` used to mean
+    accepting a ``coupon_rate`` constructor argument and silently discarding
+    it — a Liskov substitution violation (issue #7). This is a sibling class
+    under the same informal contract (``schedule()``, ``cash_flows()``,
+    ``cash_flows_after()``, ``previous_coupon_date()``, ``next_coupon_date()``,
+    plus the ``face_value``/``issue_date``/``maturity_date``/``day_count``
+    attributes) that code consuming either type relies on structurally;
+    formalizing that contract as a ``typing.Protocol`` is tracked separately
+    in #20.
+
+    ``coupon_rate`` is exposed as a fixed ``0.0`` attribute (not a
+    constructor parameter) for code that reads it generically alongside
+    :class:`Bond`. ``frequency`` is retained only as the compounding-frequency
+    assumption used when quoting a yield to maturity on a street/periodic
+    basis (see :mod:`fixed_income.pricing.yield_convention`).
     """
 
+    face_value: float
+    issue_date: date
+    maturity_date: date
+    frequency: Frequency = Frequency.SEMI_ANNUAL
+    day_count: DayCountConvention = field(default_factory=Actual365Fixed)
+    business_day_convention: BusinessDayConvention = BusinessDayConvention.FOLLOWING
+    coupon_rate: float = field(default=0.0, init=False)
+
     def __post_init__(self) -> None:
-        self.coupon_rate = 0.0
-        super().__post_init__()
+        if self.face_value <= 0:
+            raise ValueError("face_value must be positive")
+        if self.issue_date >= self.maturity_date:
+            raise ValueError("issue_date must be before maturity_date")
 
     def schedule(self) -> list[SchedulePeriod]:
         return [
@@ -104,7 +131,7 @@ class ZeroCouponBond(Bond):
                 period_index=0,
                 accrual_start=self.issue_date,
                 accrual_end=self.maturity_date,
-                payment_date=self.maturity_date,
+                payment_date=adjust_business_day(self.maturity_date, self.business_day_convention),
             )
         ]
 
@@ -112,3 +139,15 @@ class ZeroCouponBond(Bond):
         return generate_zero_coupon_cashflow(
             self.face_value, self.issue_date, self.maturity_date, self.business_day_convention
         )
+
+    def cash_flows_after(self, settlement_date: date) -> list[CashFlow]:
+        """Cash flows still owed as of ``settlement_date`` (payment date strictly after it)."""
+        return cash_flows_after(self.cash_flows(), settlement_date)
+
+    def previous_coupon_date(self, settlement_date: date) -> date:
+        """Issue date: a zero-coupon bond's single period never resets."""
+        return self.issue_date
+
+    def next_coupon_date(self, settlement_date: date) -> date:
+        """Maturity date: a zero-coupon bond's single period ends at redemption."""
+        return self.maturity_date

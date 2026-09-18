@@ -86,6 +86,16 @@ def test_yield_curve_rejects_empty():
         YieldCurve(tenors=(), zero_rates=())
 
 
+def test_yield_curve_rejects_duplicate_tenors():
+    with pytest.raises(ValueError):
+        YieldCurve(tenors=(1.0, 2.0, 2.0, 5.0), zero_rates=(0.02, 0.03, 0.03, 0.04))
+
+
+def test_yield_curve_rejects_negative_tenor():
+    with pytest.raises(ValueError):
+        YieldCurve(tenors=(-1.0, 5.0), zero_rates=(0.02, 0.04))
+
+
 def test_yield_curve_linear_interpolation_midpoint():
     curve = YieldCurve(tenors=(1.0, 3.0), zero_rates=(0.02, 0.04))
     assert curve.zero_rate(2.0) == pytest.approx(0.03)

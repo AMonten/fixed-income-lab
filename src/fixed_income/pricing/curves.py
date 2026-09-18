@@ -30,7 +30,9 @@ class YieldCurve:
     """A zero-rate curve.
 
     Attributes:
-        tenors: Tenors in years, strictly increasing.
+        tenors: Tenors in years, strictly increasing (no duplicates) and
+            non-negative — a negative tenor has no market meaning, and a
+            repeated tenor makes interpolation between it and itself ambiguous.
         zero_rates: Zero (spot) rates as decimals, one per tenor.
         compounding: Compounding convention the zero rates are quoted under.
         interpolation: Interpolation rule between pillar points. Outside the
@@ -52,8 +54,10 @@ class YieldCurve:
             raise ValueError("tenors and zero_rates must have the same length")
         if len(self.tenors) == 0:
             raise ValueError("YieldCurve requires at least one pillar point")
-        if list(self.tenors) != sorted(self.tenors):
-            raise ValueError("tenors must be strictly increasing")
+        if any(t1 <= t0 for t0, t1 in zip(self.tenors, self.tenors[1:], strict=False)):
+            raise ValueError("tenors must be strictly increasing, with no duplicates")
+        if self.tenors[0] < 0:
+            raise ValueError("tenors must be non-negative")
         object.__setattr__(self, "_yield_convention", YieldConvention(compounding=self.compounding))
 
     def zero_rate(self, t: float) -> float:

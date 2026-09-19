@@ -10,6 +10,8 @@ from fixed_income.instruments.amortizing import (
     FactorObservation,
     FullyAmortizingPlan,
     PartialAmortizationPlan,
+    ProjectedFactorPath,
+    ProjectedFactorPoint,
 )
 
 
@@ -125,6 +127,75 @@ def test_factor_history_percent_amortized_and_paydown():
 def test_factor_observation_rejects_out_of_range_factor():
     with pytest.raises(ValueError):
         FactorObservation(date(2023, 1, 1), 1.5)
+
+
+def test_factor_history_rejects_duplicate_effective_date_and_as_of():
+    """Regression for #9: a duplicate (effective_date, as_of) used to silently
+    overwrite -- whichever observation sorted last would win the lookup."""
+    with pytest.raises(ValueError):
+        FactorHistory(
+            original_face=10_000_000.0,
+            observations=(
+                FactorObservation(date(2023, 7, 1), 0.8),
+                FactorObservation(date(2023, 7, 1), 0.79),  # same (effective_date, as_of) by default
+            ),
+        )
+
+
+def test_factor_history_allows_explicit_revision_of_a_historical_observation():
+    """Regression for #9: a vendor correction -- a later as_of reporting a
+    different factor for the same effective_date -- is a legitimate revision,
+    not a duplicate, and must not raise even though the factor moves upward."""
+    history = FactorHistory(
+        original_face=10_000_000.0,
+        observations=(
+            FactorObservation(effective_date=date(2023, 7, 1), factor=0.79, as_of=date(2023, 7, 5)),
+            FactorObservation(effective_date=date(2023, 7, 1), factor=0.8, as_of=date(2023, 7, 20)),
+        ),
+    )
+    # Before the correction is known, the original report applies.
+    assert history.factor_on(date(2023, 7, 10)) == pytest.approx(0.79)
+    # Once the correction is known, it supersedes the original report.
+    assert history.factor_on(date(2023, 8, 1)) == pytest.approx(0.8)
+
+
+def test_projected_factor_path_rejects_non_monotonic_increase():
+    """Regression for #9: unlike FactorHistory, a *projected* path has no
+    "vendor correction" excuse -- an increasing factor must raise."""
+    with pytest.raises(ValueError):
+        ProjectedFactorPath(
+            original_face=10_000_000.0,
+            points=(
+                ProjectedFactorPoint(date(2023, 1, 1), 0.92),
+                ProjectedFactorPoint(date(2023, 4, 1), 0.89),
+                ProjectedFactorPoint(date(2023, 7, 1), 0.91),  # went back up
+            ),
+        )
+
+
+def test_projected_factor_path_accepts_strictly_non_increasing_path():
+    path = ProjectedFactorPath(
+        original_face=10_000_000.0,
+        points=(
+            ProjectedFactorPoint(date(2023, 1, 1), 0.92),
+            ProjectedFactorPoint(date(2023, 4, 1), 0.89),
+            ProjectedFactorPoint(date(2023, 7, 1), 0.85),
+        ),
+    )
+    assert path.factor_on(date(2023, 5, 1)) == pytest.approx(0.89)
+    assert path.current_face_on(date(2023, 5, 1)) == pytest.approx(8_900_000.0)
+
+
+def test_factor_amortization_plan_works_with_projected_factor_path():
+    path = ProjectedFactorPath(
+        original_face=10_000_000.0,
+        points=(ProjectedFactorPoint(date(2022, 7, 1), 0.9), ProjectedFactorPoint(date(2023, 1, 1), 0.8)),
+    )
+    plan = FactorAmortizationPlan(path)
+    bond = AmortizingBond(10_000_000.0, 0.045, date(2022, 1, 1), date(2023, 7, 1), plan, Frequency.SEMI_ANNUAL)
+    entries = bond.amortization_schedule()
+    assert entries[0].end_principal == pytest.approx(9_000_000.0)
+    assert entries[1].end_principal == pytest.approx(8_000_000.0)
 
 
 def test_factor_amortization_plan_drives_bond_paydown():

@@ -7,6 +7,8 @@ from .amortizing import (
     FactorObservation,
     FullyAmortizingPlan,
     PartialAmortizationPlan,
+    ProjectedFactorPath,
+    ProjectedFactorPoint,
 )
 from .bond import Bond, ZeroCouponBond
 from .floating_rate import FloatingRateNote
@@ -21,6 +23,8 @@ __all__ = [
     "FactorAmortizationPlan",
     "FactorHistory",
     "FactorObservation",
+    "ProjectedFactorPath",
+    "ProjectedFactorPoint",
     "Bond",
     "ZeroCouponBond",
     "FloatingRateNote",

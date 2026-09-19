@@ -6,15 +6,17 @@ never needs to know which one it's using:
 
 - An explicit list of principal repayment amounts, one per period. This
   splits into two plan types with different, *enforced* invariants rather
-  than one type with an implicit, unchecked one (see issue #7 / ROADMAP
+  than one type with an implicit, unchecked one (see issue #8 / ROADMAP
   0.5 for why): :class:`FullyAmortizingPlan` (repayments alone must sum to
   the original face -- "plain" amortizing bonds, e.g. level-principal, and
   sinkable bonds with no balloon) and :class:`PartialAmortizationPlan`
   (repayments plus an explicit ``balloon`` due at the final period sum to
   the original face -- a structure that partially amortizes and repays the
   rest as a lump sum at maturity).
-- :class:`FactorAmortizationPlan` — principal paydown derived from a
-  :class:`FactorHistory` of ``(date, factor)`` observations, the way
+- :class:`FactorAmortizationPlan` — principal paydown derived from either a
+  :class:`FactorHistory` of revisable ``(effective_date, factor, as_of)``
+  observations, or a :class:`ProjectedFactorPath` forecast that must be
+  strictly non-increasing (see issue #9 / ROADMAP 0.6) — the way
   pass-through pools (and, later, MBS/CMO tranches) report paydown.
 
 Either way, :meth:`AmortizingBond.amortization_schedule` produces the same
@@ -136,19 +138,47 @@ class PartialAmortizationPlan(AmortizationPlan):
 
 @dataclass(frozen=True)
 class FactorObservation:
-    """A single observed paydown factor. ``factor`` is in ``[0, 1]``: 1.0 means fully outstanding."""
+    """A single observed paydown factor, as reported/known as of a given date.
+    ``factor`` is in ``[0, 1]``: 1.0 means fully outstanding.
 
-    date: date
+    Attributes:
+        effective_date: The date the factor economically applies to.
+        factor: Paydown factor, in ``[0, 1]``.
+        as_of: The date this particular report became known. Defaults to
+            ``effective_date`` for the common case of a same-day report. A
+            vendor correction is modeled as a *second* ``FactorObservation``
+            for the same ``effective_date`` with a later ``as_of`` and a
+            different ``factor`` — an explicit revision, not a silent
+            overwrite (see :class:`FactorHistory`).
+    """
+
+    effective_date: date
     factor: float
+    as_of: date | None = None
 
     def __post_init__(self) -> None:
         if not (0.0 <= self.factor <= 1.0):
             raise ValueError(f"factor must be in [0, 1], got {self.factor}")
 
+    @property
+    def known_as_of(self) -> date:
+        """``as_of``, defaulting to ``effective_date`` when not given explicitly."""
+        return self.as_of if self.as_of is not None else self.effective_date
+
 
 @dataclass
 class FactorHistory:
     """A time series of paydown factors for a factor-based (pool) security.
+
+    Observations may legitimately be *revised*: a vendor can correct a
+    previously-reported factor for the same ``effective_date`` by adding a
+    new observation with a later ``as_of``. What's never legitimate is two
+    observations claiming the exact same ``(effective_date, as_of)`` — that's
+    always a duplicate/overwrite bug, revision or not, and is rejected.
+    Unlike a *projected* factor path (see :class:`ProjectedFactorPath`),
+    historical observations are **not** required to be monotonically
+    decreasing — a correction can legitimately raise a previously-understated
+    factor.
 
     Attributes:
         original_face: Original face amount at issuance (factor == 1.0).
@@ -159,12 +189,26 @@ class FactorHistory:
     observations: tuple[FactorObservation, ...] = field(default_factory=tuple)
 
     def __post_init__(self) -> None:
-        self.observations = tuple(sorted(self.observations, key=lambda o: o.date))
+        keys = [(o.effective_date, o.known_as_of) for o in self.observations]
+        duplicates = {k for k in keys if keys.count(k) > 1}
+        if duplicates:
+            raise ValueError(
+                f"Duplicate FactorObservation(s) for (effective_date, as_of) = {sorted(duplicates)}"
+            )
+        self.observations = tuple(sorted(self.observations, key=lambda o: (o.effective_date, o.known_as_of)))
 
     def factor_on(self, as_of: date) -> float:
-        """Most recently observed factor on or before ``as_of``; ``1.0`` if none exists yet."""
-        applicable = [o.factor for o in self.observations if o.date <= as_of]
-        return applicable[-1] if applicable else 1.0
+        """Most recently known factor as of ``as_of``; ``1.0`` if none exists yet.
+
+        Among observations already known by ``as_of`` (``o.known_as_of <= as_of``),
+        picks the one for the most recent ``effective_date`` — and, if that
+        ``effective_date`` was revised more than once, the latest revision.
+        """
+        applicable = [o for o in self.observations if o.known_as_of <= as_of]
+        if not applicable:
+            return 1.0
+        latest = max(applicable, key=lambda o: (o.effective_date, o.known_as_of))
+        return latest.factor
 
     def current_face_on(self, as_of: date) -> float:
         """Current Face = Original Face x Current Factor."""
@@ -178,10 +222,62 @@ class FactorHistory:
 
 
 @dataclass(frozen=True)
-class FactorAmortizationPlan(AmortizationPlan):
-    """Principal paydown derived from a :class:`FactorHistory`."""
+class ProjectedFactorPoint:
+    """A single point on a forward-looking, forecast paydown-factor path.
+    ``factor`` is in ``[0, 1]``: 1.0 means fully outstanding."""
 
-    factor_history: FactorHistory
+    date: date
+    factor: float
+
+    def __post_init__(self) -> None:
+        if not (0.0 <= self.factor <= 1.0):
+            raise ValueError(f"factor must be in [0, 1], got {self.factor}")
+
+
+@dataclass
+class ProjectedFactorPath:
+    """A forward-looking paydown-factor path, e.g. derived from a PSA/CPR
+    prepayment assumption — as opposed to :class:`FactorHistory`'s historical
+    observations, which may legitimately be revised upward by a vendor
+    correction. A *projected* path has no such excuse: it must be strictly
+    non-increasing, checked once here at construction rather than silently
+    tolerated at lookup time.
+
+    Attributes:
+        original_face: Original face amount at issuance (factor == 1.0).
+        points: Projected ``(date, factor)`` points, in any order.
+    """
+
+    original_face: float
+    points: tuple[ProjectedFactorPoint, ...] = field(default_factory=tuple)
+
+    def __post_init__(self) -> None:
+        ordered = tuple(sorted(self.points, key=lambda p: p.date))
+        for prev, curr in zip(ordered, ordered[1:], strict=False):
+            if curr.factor > prev.factor:
+                raise ValueError(
+                    f"ProjectedFactorPath must be non-increasing: factor at {curr.date} "
+                    f"({curr.factor}) exceeds factor at {prev.date} ({prev.factor})"
+                )
+        self.points = ordered
+
+    def factor_on(self, as_of: date) -> float:
+        """Most recently projected factor on or before ``as_of``; ``1.0`` if none exists yet."""
+        applicable = [p.factor for p in self.points if p.date <= as_of]
+        return applicable[-1] if applicable else 1.0
+
+    def current_face_on(self, as_of: date) -> float:
+        """Current Face = Original Face x Current Factor."""
+        return self.original_face * self.factor_on(as_of)
+
+
+@dataclass(frozen=True)
+class FactorAmortizationPlan(AmortizationPlan):
+    """Principal paydown derived from a :class:`FactorHistory` (revisable
+    observations) or a :class:`ProjectedFactorPath` (forecast, strictly
+    non-increasing) — both expose the same ``current_face_on(as_of)``."""
+
+    factor_history: FactorHistory | ProjectedFactorPath
 
     def outstanding_after(
         self, period_index: int, schedule: list[SchedulePeriod], original_face: float

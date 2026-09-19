@@ -5,10 +5,11 @@ import pytest
 from fixed_income.conventions.frequency import Frequency
 from fixed_income.instruments.amortizing import (
     AmortizingBond,
-    ExplicitAmortizationPlan,
     FactorAmortizationPlan,
     FactorHistory,
     FactorObservation,
+    FullyAmortizingPlan,
+    PartialAmortizationPlan,
 )
 
 
@@ -46,7 +47,7 @@ def test_current_factor_and_face_over_time():
 
 
 def test_sinkable_bond_explicit_schedule():
-    plan = ExplicitAmortizationPlan((200_000.0, 300_000.0, 500_000.0))
+    plan = FullyAmortizingPlan((200_000.0, 300_000.0, 500_000.0))
     bond = AmortizingBond(1_000_000.0, 0.05, date(2023, 1, 1), date(2024, 7, 1), plan, Frequency.SEMI_ANNUAL)
     entries = bond.amortization_schedule()
     assert [e.principal_repayment for e in entries] == pytest.approx([200_000.0, 300_000.0, 500_000.0])
@@ -54,8 +55,53 @@ def test_sinkable_bond_explicit_schedule():
 
 
 def test_sinkable_plan_length_mismatch_raises():
-    plan = ExplicitAmortizationPlan((200_000.0, 300_000.0))  # only 2 entries
+    plan = FullyAmortizingPlan((200_000.0, 300_000.0))  # only 2 entries
     bond = AmortizingBond(1_000_000.0, 0.05, date(2023, 1, 1), date(2024, 7, 1), plan, Frequency.SEMI_ANNUAL)
+    with pytest.raises(ValueError):
+        bond.amortization_schedule()
+
+
+def test_fully_amortizing_plan_rejects_over_amortization_instead_of_clamping():
+    """Regression for #8: repayments summing to more than original_face used to
+    silently clamp outstanding to zero via max(..., 0.0) instead of raising."""
+    plan = FullyAmortizingPlan((200_000.0, 300_000.0, 600_000.0))  # sums to 1,100,000 > face
+    bond = AmortizingBond(1_000_000.0, 0.05, date(2023, 1, 1), date(2024, 7, 1), plan, Frequency.SEMI_ANNUAL)
+    with pytest.raises(ValueError):
+        bond.amortization_schedule()
+
+
+def test_fully_amortizing_plan_rejects_under_amortization():
+    """A FullyAmortizingPlan whose repayments don't sum to face is exactly the
+    ambiguous case #8 flags -- it must raise, not leave a silent leftover."""
+    plan = FullyAmortizingPlan((200_000.0, 300_000.0, 400_000.0))  # sums to 900,000 < face
+    bond = AmortizingBond(1_000_000.0, 0.05, date(2023, 1, 1), date(2024, 7, 1), plan, Frequency.SEMI_ANNUAL)
+    with pytest.raises(ValueError):
+        bond.amortization_schedule()
+
+
+def test_partial_amortization_plan_repays_balloon_at_final_period():
+    """The ROADMAP's own example: 100 = 20 + 20 + 20 in level repayments,
+    with a 40 balloon due in full at the final period."""
+    plan = PartialAmortizationPlan((20.0, 20.0, 20.0), balloon=40.0)
+    bond = AmortizingBond(100.0, 0.05, date(2023, 1, 1), date(2024, 7, 1), plan, Frequency.SEMI_ANNUAL)
+    entries = bond.amortization_schedule()
+    assert [e.principal_repayment for e in entries] == pytest.approx([20.0, 20.0, 60.0])
+    assert entries[-1].end_principal == pytest.approx(0.0)
+
+
+def test_partial_amortization_plan_requires_repayments_plus_balloon_to_equal_face():
+    plan = PartialAmortizationPlan((20.0, 20.0, 20.0), balloon=100.0)  # 60 + 100 != 100
+    bond = AmortizingBond(100.0, 0.05, date(2023, 1, 1), date(2024, 7, 1), plan, Frequency.SEMI_ANNUAL)
+    with pytest.raises(ValueError):
+        bond.amortization_schedule()
+
+
+def test_partial_amortization_plan_rejects_over_amortization_before_the_balloon():
+    """A too-large intermediate repayment must raise even though the total
+    across all periods still adds up to face -- issue #8's "single period
+    driving outstanding below zero" case, not just a bad grand total."""
+    plan = PartialAmortizationPlan((90.0, 20.0, -10.0), balloon=0.0)  # sums to 100, but period 1 over-repays
+    bond = AmortizingBond(100.0, 0.05, date(2023, 1, 1), date(2024, 7, 1), plan, Frequency.SEMI_ANNUAL)
     with pytest.raises(ValueError):
         bond.amortization_schedule()
 

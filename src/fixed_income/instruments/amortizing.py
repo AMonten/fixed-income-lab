@@ -4,11 +4,15 @@ Two ways to describe how principal comes down are supported, both behind
 the common :class:`AmortizationPlan` interface so :class:`AmortizingBond`
 never needs to know which one it's using:
 
-- :class:`ExplicitAmortizationPlan` — an explicit list of principal
-  repayment amounts, one per period. This covers both "plain" amortizing
-  bonds (e.g. level-principal, built via
-  :meth:`AmortizingBond.with_level_principal`) and sinkable bonds with a
-  custom sinking-fund table.
+- An explicit list of principal repayment amounts, one per period. This
+  splits into two plan types with different, *enforced* invariants rather
+  than one type with an implicit, unchecked one (see issue #7 / ROADMAP
+  0.5 for why): :class:`FullyAmortizingPlan` (repayments alone must sum to
+  the original face -- "plain" amortizing bonds, e.g. level-principal, and
+  sinkable bonds with no balloon) and :class:`PartialAmortizationPlan`
+  (repayments plus an explicit ``balloon`` due at the final period sum to
+  the original face -- a structure that partially amortizes and repays the
+  rest as a lump sum at maturity).
 - :class:`FactorAmortizationPlan` — principal paydown derived from a
   :class:`FactorHistory` of ``(date, factor)`` observations, the way
   pass-through pools (and, later, MBS/CMO tranches) report paydown.
@@ -16,10 +20,14 @@ never needs to know which one it's using:
 Either way, :meth:`AmortizingBond.amortization_schedule` produces the same
 shape of output: beginning principal, interest, principal repayment, and
 ending principal per period.
+
+Over-amortizing (repayments driving outstanding principal below zero) always
+raises rather than silently clamping to zero -- see :func:`_outstanding_after`.
 """
 
 from __future__ import annotations
 
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import date
@@ -28,6 +36,13 @@ from ..cashflows.generator import CashFlow, cash_flows_after
 from ..cashflows.schedule import BusinessDayConvention, SchedulePeriod, generate_schedule
 from ..conventions.day_count import Actual365Fixed, DayCountConvention
 from ..conventions.frequency import Frequency
+
+# Tolerance for float summation noise, per 100 of face value -- not a fudge
+# factor for bad data. A validated repayment schedule (Sigma == face, checked
+# below) can still land a few ULPs short of exactly zero outstanding at the
+# final period purely from float addition order; that noise is clamped to
+# zero. Anything past this tolerance is a real over-amortization and raises.
+_TOL = 1e-6
 
 
 class AmortizationPlan(ABC):
@@ -40,22 +55,83 @@ class AmortizationPlan(ABC):
         """Outstanding principal immediately after ``period_index``'s payment."""
 
 
+def _validate_repayment_count(
+    principal_repayments: tuple[float, ...], schedule: list[SchedulePeriod]
+) -> None:
+    if len(principal_repayments) != len(schedule):
+        raise ValueError(
+            f"principal_repayments has {len(principal_repayments)} entries but "
+            f"schedule has {len(schedule)} periods"
+        )
+
+
+def _outstanding_after(repaid_so_far: float, period_index: int, original_face: float) -> float:
+    outstanding = original_face - repaid_so_far
+    if outstanding < -_TOL:
+        raise ValueError(
+            f"Over-amortized: cumulative principal repayment through period {period_index} "
+            f"({repaid_so_far}) exceeds original_face ({original_face})"
+        )
+    return max(outstanding, 0.0)
+
+
 @dataclass(frozen=True)
-class ExplicitAmortizationPlan(AmortizationPlan):
-    """Principal repayment specified explicitly, one amount per period."""
+class FullyAmortizingPlan(AmortizationPlan):
+    """Principal repayment specified explicitly, one amount per period.
+    ``principal_repayments`` alone must sum to ``original_face`` -- enforced,
+    not assumed. Use :class:`PartialAmortizationPlan` for a structure with an
+    explicit balloon due at maturity instead.
+    """
 
     principal_repayments: tuple[float, ...]
 
     def outstanding_after(
         self, period_index: int, schedule: list[SchedulePeriod], original_face: float
     ) -> float:
-        if len(self.principal_repayments) != len(schedule):
+        _validate_repayment_count(self.principal_repayments, schedule)
+        total = sum(self.principal_repayments)
+        if not math.isclose(total, original_face, rel_tol=1e-9, abs_tol=_TOL):
             raise ValueError(
-                f"principal_repayments has {len(self.principal_repayments)} entries but "
-                f"schedule has {len(schedule)} periods"
+                f"FullyAmortizingPlan requires principal_repayments to sum to original_face "
+                f"({original_face}); got {total}. Use PartialAmortizationPlan for a structure "
+                f"with a balloon due at maturity."
             )
         repaid_so_far = sum(self.principal_repayments[: period_index + 1])
-        return original_face - repaid_so_far
+        return _outstanding_after(repaid_so_far, period_index, original_face)
+
+
+@dataclass(frozen=True)
+class PartialAmortizationPlan(AmortizationPlan):
+    """Principal repayment specified explicitly per period, plus an explicit
+    ``balloon`` repaid in full at the final period -- e.g. ``principal_repayments
+    = (20.0, 20.0, 20.0)`` with ``balloon=40.0`` on a face of 100: each period
+    repays its level 20, and the final period repays an additional 40 on top.
+
+    Unlike :class:`FullyAmortizingPlan`, ``principal_repayments`` alone need
+    not sum to ``original_face`` -- the terminal balance is this plan's
+    explicit ``balloon``, not an implicit leftover the caller has to
+    remember to zero out. ``principal_repayments`` plus ``balloon`` together
+    must still sum to ``original_face``: this is a partial-amortization-then-
+    balloon structure, not a way to under- or over-redeem a bond.
+    """
+
+    principal_repayments: tuple[float, ...]
+    balloon: float
+
+    def outstanding_after(
+        self, period_index: int, schedule: list[SchedulePeriod], original_face: float
+    ) -> float:
+        _validate_repayment_count(self.principal_repayments, schedule)
+        total = sum(self.principal_repayments) + self.balloon
+        if not math.isclose(total, original_face, rel_tol=1e-9, abs_tol=_TOL):
+            raise ValueError(
+                f"PartialAmortizationPlan requires principal_repayments plus balloon to sum "
+                f"to original_face ({original_face}); got {total}"
+            )
+        repaid_so_far = sum(self.principal_repayments[: period_index + 1])
+        if period_index == len(schedule) - 1:
+            repaid_so_far += self.balloon
+        return _outstanding_after(repaid_so_far, period_index, original_face)
 
 
 @dataclass(frozen=True)
@@ -184,7 +260,7 @@ class AmortizingBond:
         installment = original_face / n
         repayments = [installment] * n
         repayments[-1] = original_face - sum(repayments[:-1])
-        plan = ExplicitAmortizationPlan(tuple(repayments))
+        plan = FullyAmortizingPlan(tuple(repayments))
         return cls(
             original_face, coupon_rate, issue_date, maturity_date, plan,
             frequency, dc, business_day_convention,
@@ -201,9 +277,7 @@ class AmortizingBond:
         entries = []
         begin = self.original_face
         for period in schedule:
-            end = max(
-                self.amortization.outstanding_after(period.period_index, schedule, self.original_face), 0.0
-            )
+            end = self.amortization.outstanding_after(period.period_index, schedule, self.original_face)
             principal_repayment = begin - end
             year_fraction = self.day_count.year_fraction(period.accrual_start, period.accrual_end)
             interest = begin * self.coupon_rate * year_fraction

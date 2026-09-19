@@ -2,10 +2,11 @@ from .amortizing import (
     AmortizationPlan,
     AmortizationScheduleEntry,
     AmortizingBond,
-    ExplicitAmortizationPlan,
     FactorAmortizationPlan,
     FactorHistory,
     FactorObservation,
+    FullyAmortizingPlan,
+    PartialAmortizationPlan,
 )
 from .bond import Bond, ZeroCouponBond
 from .floating_rate import FloatingRateNote
@@ -15,7 +16,8 @@ __all__ = [
     "AmortizationPlan",
     "AmortizationScheduleEntry",
     "AmortizingBond",
-    "ExplicitAmortizationPlan",
+    "FullyAmortizingPlan",
+    "PartialAmortizationPlan",
     "FactorAmortizationPlan",
     "FactorHistory",
     "FactorObservation",

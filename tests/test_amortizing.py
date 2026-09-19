@@ -2,6 +2,7 @@ from datetime import date
 
 import pytest
 
+from fixed_income.conventions.day_count import Actual365Fixed, ScheduleContext
 from fixed_income.conventions.frequency import Frequency
 from fixed_income.instruments.amortizing import (
     AmortizingBond,
@@ -106,6 +107,30 @@ def test_partial_amortization_plan_rejects_over_amortization_before_the_balloon(
     bond = AmortizingBond(100.0, 0.05, date(2023, 1, 1), date(2024, 7, 1), plan, Frequency.SEMI_ANNUAL)
     with pytest.raises(ValueError):
         bond.amortization_schedule()
+
+
+def test_amortizing_bond_period_interest_receives_schedule_context():
+    """Regression for #14: each period's interest year_fraction() call must
+    carry a ScheduleContext for that same period and the bond's frequency."""
+
+    class _SpyDayCount(Actual365Fixed):
+        def __init__(self):
+            self.received_contexts: list[ScheduleContext | None] = []
+
+        def year_fraction(self, start, end, context=None):
+            self.received_contexts.append(context)
+            return super().year_fraction(start, end)
+
+    plan = FullyAmortizingPlan((200_000.0, 300_000.0, 500_000.0))
+    spy = _SpyDayCount()
+    bond = AmortizingBond(
+        1_000_000.0, 0.05, date(2023, 1, 1), date(2024, 7, 1), plan, Frequency.SEMI_ANNUAL, spy
+    )
+    entries = bond.amortization_schedule()
+
+    assert len(spy.received_contexts) == len(entries) == 3
+    for period, context in zip(bond.schedule(), spy.received_contexts, strict=True):
+        assert context == ScheduleContext(period.accrual_start, period.accrual_end, Frequency.SEMI_ANNUAL)
 
 
 def test_factor_history_current_face_matches_spec_example():

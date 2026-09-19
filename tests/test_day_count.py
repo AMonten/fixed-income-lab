@@ -6,9 +6,11 @@ from fixed_income.conventions.day_count import (
     Actual360,
     Actual365Fixed,
     DayCount,
+    ScheduleContext,
     Thirty360US,
     get_day_count_convention,
 )
+from fixed_income.conventions.frequency import Frequency
 
 
 def test_actual_360_year_fraction():
@@ -65,3 +67,13 @@ def test_get_day_count_convention_passthrough_for_instance():
 def test_get_day_count_convention_unknown_raises():
     with pytest.raises(ValueError):
         get_day_count_convention("ACT/ACT-ISDA")
+
+
+@pytest.mark.parametrize("dc", [Actual360(), Actual365Fixed(), Thirty360US()])
+def test_year_fraction_ignores_schedule_context_for_existing_conventions(dc):
+    """Regression for #14: year_fraction() gains an optional ScheduleContext
+    parameter, but every convention that exists today must produce exactly
+    the same result with or without one."""
+    start, end = date(2024, 1, 15), date(2024, 7, 15)
+    context = ScheduleContext(period_start=start, period_end=end, frequency=Frequency.SEMI_ANNUAL)
+    assert dc.year_fraction(start, end, context) == dc.year_fraction(start, end)

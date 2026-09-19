@@ -38,6 +38,13 @@ def present_value(
     yield-based pricing (see :func:`present_value_from_yield`), whose quoted
     convention counts coupon periods rather than calendar time to the
     adjusted payment date.
+
+    No :class:`~fixed_income.conventions.day_count.ScheduleContext` is passed
+    here: ``settlement_date`` to ``cf.payment_date`` can span many coupon
+    periods (any cash flow beyond the very next one), so there's no single
+    reference period to hand a period-based convention like ACT/ACT ICMA —
+    see :class:`~fixed_income.conventions.day_count.ScheduleContext`'s
+    docstring.
     """
     total = 0.0
     for cf in cash_flows_after(cash_flows, settlement_date):

@@ -143,6 +143,8 @@ def yield_time_fractions(
         return []
 
     if yield_convention.time_convention is YieldTimeConvention.TRUE:
+        # No ScheduleContext: settlement to an arbitrary future payment date
+        # can span many coupon periods, same reasoning as present_value().
         return [day_count.year_fraction(settlement_date, cf.payment_date) for cf in remaining]
 
     first = remaining[0]

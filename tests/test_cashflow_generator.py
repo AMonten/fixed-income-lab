@@ -9,7 +9,7 @@ from fixed_income.cashflows.generator import (
     generate_zero_coupon_cashflow,
 )
 from fixed_income.cashflows.schedule import generate_schedule
-from fixed_income.conventions.day_count import Actual365Fixed
+from fixed_income.conventions.day_count import Actual365Fixed, ScheduleContext
 from fixed_income.conventions.frequency import Frequency
 
 
@@ -58,6 +58,33 @@ def test_zero_coupon_cashflow_is_single_redemption_payment():
     assert cf.principal == 100.0
     assert cf.begin_principal == 100.0
     assert cf.end_principal == 0.0
+
+
+def test_stub_period_coupon_receives_schedule_context():
+    """Regression for #14: a stub period's year_fraction() call must carry a
+    ScheduleContext describing that same period and the bond's frequency --
+    the interface a future ACT/ACT ICMA convention needs to size a stub."""
+
+    class _SpyDayCount(Actual365Fixed):
+        def __init__(self):
+            self.received_contexts: list[ScheduleContext | None] = []
+
+        def year_fraction(self, start, end, context=None):
+            self.received_contexts.append(context)
+            return super().year_fraction(start, end)
+
+    # 2020-03-01 to 2025-01-15 semi-annual isn't an exact multiple of 6
+    # months, so the first period (2020-03-01 -> 2020-07-15) is a stub.
+    stub_schedule = generate_schedule(date(2020, 3, 1), date(2025, 1, 15), Frequency.SEMI_ANNUAL)
+    spy = _SpyDayCount()
+    generate_bullet_cashflows(100.0, 0.05, stub_schedule, spy, frequency=Frequency.SEMI_ANNUAL)
+
+    stub_period = stub_schedule[0]
+    assert spy.received_contexts[0] == ScheduleContext(
+        stub_period.accrual_start, stub_period.accrual_end, Frequency.SEMI_ANNUAL
+    )
+    # Regular periods never call year_fraction() at all (flat amount instead).
+    assert len(spy.received_contexts) == 1
 
 
 def test_cash_flows_after_filters_strictly_after_settlement(schedule):

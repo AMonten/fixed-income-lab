@@ -14,6 +14,21 @@ convention through the :class:`DayCountConvention` interface, never through
 convention-specific branching, so a new convention can be added by writing
 one class and registering it below.
 
+Schedule context
+-----------------
+
+``year_fraction(start, end)`` alone is structurally insufficient for
+ACT/ACT ICMA (#15): its formula divides by the *reference coupon period*
+containing ``[start, end]``, not just the two dates themselves, so a
+period-based convention needs to know that period's own bounds and the
+instrument's coupon frequency. :meth:`DayCountConvention.year_fraction`
+therefore takes an optional :class:`ScheduleContext` — see its docstring for
+which call sites can supply one and which can't.
+
+Existing conventions (``ACT/360``, ``ACT/365``, ``30/360``) accept and
+ignore ``context``: none of their formulas reference a reference period, so
+threading it through changes no existing result (issue #14).
+
 Supported conventions
 ----------------------
 
@@ -41,8 +56,38 @@ from __future__ import annotations
 
 import calendar
 from abc import ABC, abstractmethod
+from dataclasses import dataclass
 from datetime import date
 from enum import Enum
+
+from .frequency import Frequency
+
+
+@dataclass(frozen=True)
+class ScheduleContext:
+    """The coupon-period context surrounding a :meth:`DayCountConvention.year_fraction`
+    calculation, needed by period-based conventions (ACT/ACT ICMA — see #15) that
+    can't be computed from two isolated dates alone.
+
+    Only meaningful when ``start``/``end`` lie within a *single* coupon
+    period — coupon sizing (:mod:`fixed_income.cashflows.generator`,
+    :class:`~fixed_income.instruments.amortizing.AmortizingBond`). Settlement-
+    to-arbitrary-payment-date calendar time (curve discounting, "true yield"
+    discounting — see :mod:`fixed_income.pricing.present_value` and
+    :mod:`fixed_income.pricing.yield_convention`) can span many coupon
+    periods with no single reference period to hand; those call sites pass
+    no context, by design, rather than a misleading one.
+
+    Attributes:
+        period_start: Start of the coupon period containing this calculation
+            (the period's own start, even if it's an irregular/stub period).
+        period_end: End of that same coupon period.
+        frequency: The instrument's coupon frequency.
+    """
+
+    period_start: date
+    period_end: date
+    frequency: Frequency
 
 
 class DayCountConvention(ABC):
@@ -55,8 +100,13 @@ class DayCountConvention(ABC):
         """Number of days between ``start`` and ``end`` per this convention."""
 
     @abstractmethod
-    def year_fraction(self, start: date, end: date) -> float:
-        """Fraction of a year between ``start`` and ``end`` per this convention."""
+    def year_fraction(self, start: date, end: date, context: ScheduleContext | None = None) -> float:
+        """Fraction of a year between ``start`` and ``end`` per this convention.
+
+        ``context``, when given, is the coupon period containing ``[start,
+        end]`` — see :class:`ScheduleContext`. Conventions that don't need it
+        (everything in V1 except the ACT/ACT ICMA planned in #15) ignore it.
+        """
 
     def __repr__(self) -> str:  # pragma: no cover - cosmetic
         return f"{self.__class__.__name__}({self.name!r})"
@@ -70,7 +120,7 @@ class Actual360(DayCountConvention):
     def day_count(self, start: date, end: date) -> int:
         return (end - start).days
 
-    def year_fraction(self, start: date, end: date) -> float:
+    def year_fraction(self, start: date, end: date, context: ScheduleContext | None = None) -> float:
         return self.day_count(start, end) / 360.0
 
 
@@ -82,7 +132,7 @@ class Actual365Fixed(DayCountConvention):
     def day_count(self, start: date, end: date) -> int:
         return (end - start).days
 
-    def year_fraction(self, start: date, end: date) -> float:
+    def year_fraction(self, start: date, end: date, context: ScheduleContext | None = None) -> float:
         return self.day_count(start, end) / 365.0
 
 
@@ -103,7 +153,7 @@ class Thirty360US(DayCountConvention):
 
         return (y2 - y1) * 360 + (m2 - m1) * 30 + (d2 - d1)
 
-    def year_fraction(self, start: date, end: date) -> float:
+    def year_fraction(self, start: date, end: date, context: ScheduleContext | None = None) -> float:
         return self.day_count(start, end) / 360.0
 
 

@@ -32,7 +32,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
-from ..conventions.day_count import DayCountConvention
+from ..conventions.day_count import DayCountConvention, ScheduleContext
 from ..conventions.frequency import Frequency
 from .schedule import BusinessDayConvention as _BusinessDayConvention
 from .schedule import SchedulePeriod, add_months, adjust_business_day
@@ -84,7 +84,9 @@ def _coupon_amount(
 ) -> float:
     if frequency is not None and _is_regular_period(period, frequency):
         return face_value * coupon_rate / frequency.periods_per_year
-    return face_value * coupon_rate * day_count.year_fraction(period.accrual_start, period.accrual_end)
+    context = ScheduleContext(period.accrual_start, period.accrual_end, frequency) if frequency else None
+    year_fraction = day_count.year_fraction(period.accrual_start, period.accrual_end, context)
+    return face_value * coupon_rate * year_fraction
 
 
 def generate_variable_rate_cashflows(

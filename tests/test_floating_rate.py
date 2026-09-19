@@ -74,7 +74,24 @@ def test_reset_lag_shifts_reset_date_before_accrual_start(index):
         reset_lag_days=2,
     )
     schedule = frn.schedule()
-    assert frn.reset_date_for(schedule[0]) == schedule[0].accrual_start - timedelta(days=2)
+    # accrual_start (2023-01-15) is a Sunday: 2 *business* days before it is
+    # Thursday 2023-01-12, not the naive calendar-day subtraction (Friday 2023-01-13).
+    assert schedule[0].accrual_start == date(2023, 1, 15)
+    assert frn.reset_date_for(schedule[0]) == date(2023, 1, 12)
+
+
+def test_reset_lag_counts_business_days_not_calendar_days(index):
+    """Regression for #11: reset_lag_days used to subtract raw calendar days
+    (timedelta), which lands on the wrong date whenever the lookback window
+    crosses a weekend."""
+    frn = FloatingRateNote(
+        100.0, 0.0025, date(2023, 1, 15), date(2024, 1, 15), index, Frequency.QUARTERLY, Actual360(),
+        reset_lag_days=2,
+    )
+    schedule = frn.schedule()
+    naive_calendar_day_result = schedule[0].accrual_start - timedelta(days=2)
+    assert frn.reset_date_for(schedule[0]) != naive_calendar_day_result
+    assert frn.reset_date_for(schedule[0]).weekday() < 5
 
 
 def test_negative_reset_lag_rejected(index):

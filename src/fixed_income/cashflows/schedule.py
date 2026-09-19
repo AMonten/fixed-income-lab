@@ -64,6 +64,19 @@ def _preceding(d: date) -> date:
     return d
 
 
+def subtract_business_days(d: date, n: int) -> date:
+    """Step back ``n`` business days from ``d`` (weekend-only in V1 -- see module
+    docstring; no holiday calendar yet, tracked in issue #18). ``d`` itself is
+    not required to be a business day, and ``n=0`` returns ``d`` unchanged."""
+    remaining = n
+    current = d
+    while remaining > 0:
+        current -= timedelta(days=1)
+        if is_business_day(current):
+            remaining -= 1
+    return current
+
+
 def add_months(d: date, months: int) -> date:
     """Add ``months`` to ``d``, clamping the day to the target month's length."""
     total_months = d.month - 1 + months

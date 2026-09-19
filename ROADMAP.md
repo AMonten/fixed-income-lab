@@ -98,7 +98,7 @@ a ninguna cotización real.
 | # | Ítem | Evidencia | Archivo | Issue | Criterio de hecho | Estado |
 |---|---|---|---|---|---|---|
 | 0.4 | `ZeroCouponBond(100, 0.07, ...)` guarda `coupon_rate=0.0` — la firma posicional miente, viola LSP. Reproducido en vivo. | verificado | `instruments/bond.py:95` | [#7](https://github.com/AMonten/fixed-income-lab/issues/7) | Test de regresión (ver regla uniforme del bloque). | hecho — `ZeroCouponBond` ya no hereda de `Bond`; clase hermana sin parámetro `coupon_rate` en el constructor (expuesto como atributo fijo `0.0`). De paso se arregló la inconsistencia `schedule()`/`cash_flows()` en el payment_date (ver fila 152). |
-| 0.8 | `reset_lag_days` del FRN resta días calendario (`timedelta`), no días hábiles bajo el calendario de fixing aplicable. | verificado | `floating_rate.py:78` | [#11](https://github.com/AMonten/fixed-income-lab/issues/11) | Test de regresión (ver regla uniforme del bloque). | pendiente |
+| 0.8 | `reset_lag_days` del FRN resta días calendario (`timedelta`), no días hábiles bajo el calendario de fixing aplicable. | verificado | `floating_rate.py:78` | [#11](https://github.com/AMonten/fixed-income-lab/issues/11) | Test de regresión (ver regla uniforme del bloque). | hecho — nuevo `cashflows/schedule.subtract_business_days()` (mismo criterio weekend-only ya usado en el resto de V1, no un calendario de fixing específico) reemplaza el `timedelta` crudo. El diseño más grande de `RateIndex`/`ResetConvention` (lookback/lockout/observation shift/compounded-in-arrears) sigue pendiente — ver fila de Bloque 1 abajo — y la decisión de qué calendario de fixing usar sigue abierta (ver Anexo). |
 
 ### 0C — Documentación y dependencias
 

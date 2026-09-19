@@ -9,6 +9,7 @@ from fixed_income.cashflows.schedule import (
     generate_schedule,
     generate_schedule_dates,
     is_business_day,
+    subtract_business_days,
 )
 from fixed_income.conventions.frequency import Frequency
 
@@ -79,3 +80,21 @@ def test_adjust_business_day_modified_following_stays_in_month():
     # modified-following should instead roll backward to stay in December.
     dec_31 = date(2023, 12, 31)
     assert adjust_business_day(dec_31, BusinessDayConvention.MODIFIED_FOLLOWING) == date(2023, 12, 29)
+
+
+def test_subtract_business_days_zero_is_identity_even_off_business_day():
+    saturday = date(2024, 1, 13)
+    assert subtract_business_days(saturday, 0) == saturday
+
+
+def test_subtract_business_days_skips_weekend():
+    # Monday 2024-01-15 minus 1 business day is Friday 2024-01-12, not
+    # Sunday 2024-01-14 (a naive timedelta(days=1) subtraction).
+    monday = date(2024, 1, 15)
+    assert subtract_business_days(monday, 1) == date(2024, 1, 12)
+
+
+def test_subtract_business_days_from_a_weekend_start():
+    # 2 business days back from Sunday 2024-01-14: Sat(skip), Fri(1), Thu(2).
+    sunday = date(2024, 1, 14)
+    assert subtract_business_days(sunday, 2) == date(2024, 1, 11)

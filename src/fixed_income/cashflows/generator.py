@@ -84,7 +84,15 @@ def _coupon_amount(
 ) -> float:
     if frequency is not None and _is_regular_period(period, frequency):
         return face_value * coupon_rate / frequency.periods_per_year
-    context = ScheduleContext(period.accrual_start, period.accrual_end, frequency) if frequency else None
+    context = None
+    if frequency is not None:
+        # The reference period for a stub is the *regular* nominal period it's
+        # a fragment of, not the stub's own (shorter) bounds -- see
+        # ScheduleContext's docstring. accrual_end is always a regular grid
+        # date (schedules step backward from maturity), so it anchors the
+        # reference period even when accrual_start is an irregular stub start.
+        reference_start = add_months(period.accrual_end, -frequency.months_between_payments)
+        context = ScheduleContext(reference_start, period.accrual_end, frequency)
     year_fraction = day_count.year_fraction(period.accrual_start, period.accrual_end, context)
     return face_value * coupon_rate * year_fraction
 

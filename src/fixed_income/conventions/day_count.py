@@ -50,6 +50,12 @@ Supported conventions
     the last day of February) it is set to 30; if ``D2`` is 31 and ``D1``
     was already adjusted to 30, ``D2`` is also set to 30.
     ``year_fraction = days / 360``.
+
+``ACT/ACT-ICMA`` (:class:`ActualActualICMA`)
+    ``year_fraction = actual_days_in[start, end] / (frequency * actual_days_in_reference_period)``,
+    where the reference period comes from a :class:`ScheduleContext` (see
+    above) — this convention *requires* one and raises without it. Used by
+    most fixed-rate non-USD sovereign and international bonds.
 """
 
 from __future__ import annotations
@@ -65,11 +71,23 @@ from .frequency import Frequency
 
 @dataclass(frozen=True)
 class ScheduleContext:
-    """The coupon-period context surrounding a :meth:`DayCountConvention.year_fraction`
+    """The reference-period context surrounding a :meth:`DayCountConvention.year_fraction`
     calculation, needed by period-based conventions (ACT/ACT ICMA — see #15) that
     can't be computed from two isolated dates alone.
 
-    Only meaningful when ``start``/``end`` lie within a *single* coupon
+    ``reference_period_start``/``reference_period_end`` are the *regular*
+    (nominal) coupon period that ``[start, end]`` sits inside — **not**
+    necessarily ``[start, end]`` itself. For a regular period they coincide;
+    for a stub (the actual calculation span is shorter than a full nominal
+    period — V1 schedules only ever produce a *short* stub, always at the
+    front, per :func:`fixed_income.cashflows.schedule.generate_schedule_dates`)
+    they're the full nominal period the stub is a fragment of. ICMA's
+    formula divides by the days in that *nominal* period, not the stub's own
+    (shorter) span — passing the stub's own bounds here would make every
+    stub coupon come out as a flat ``1/frequency``, exactly the proration
+    ICMA exists to avoid.
+
+    Only meaningful when ``[start, end]`` lies within a single coupon
     period — coupon sizing (:mod:`fixed_income.cashflows.generator`,
     :class:`~fixed_income.instruments.amortizing.AmortizingBond`). Settlement-
     to-arbitrary-payment-date calendar time (curve discounting, "true yield"
@@ -79,14 +97,14 @@ class ScheduleContext:
     no context, by design, rather than a misleading one.
 
     Attributes:
-        period_start: Start of the coupon period containing this calculation
-            (the period's own start, even if it's an irregular/stub period).
-        period_end: End of that same coupon period.
+        reference_period_start: Start of the regular (nominal) coupon period
+            containing this calculation.
+        reference_period_end: End of that same regular coupon period.
         frequency: The instrument's coupon frequency.
     """
 
-    period_start: date
-    period_end: date
+    reference_period_start: date
+    reference_period_end: date
     frequency: Frequency
 
 
@@ -157,6 +175,42 @@ class Thirty360US(DayCountConvention):
         return self.day_count(start, end) / 360.0
 
 
+class ActualActualICMA(DayCountConvention):
+    """ACT/ACT ICMA (ISMA-99 / ICMA Rule 251): the coupon-period-based
+    actual/actual convention used by most fixed-rate non-USD sovereign and
+    international bonds.
+
+    ``year_fraction = actual_days_in[start, end] / (frequency * actual_days_in_reference_period)``
+
+    where the reference period is the *regular* nominal coupon period
+    containing ``[start, end]`` — supplied via :class:`ScheduleContext`,
+    since this can't be derived from ``start``/``end`` alone (that's the
+    whole reason this convention needs schedule context; see #14). For a
+    regular period (``[start, end]`` == the reference period) this reduces
+    to exactly ``1/frequency``; for a stub it prorates by actual days.
+    """
+
+    name = "ACT/ACT-ICMA"
+
+    def day_count(self, start: date, end: date) -> int:
+        return (end - start).days
+
+    def year_fraction(self, start: date, end: date, context: ScheduleContext | None = None) -> float:
+        if context is None:
+            raise ValueError(
+                "ActualActualICMA.year_fraction requires a ScheduleContext: it cannot be "
+                "computed from two isolated dates alone. See ScheduleContext's docstring "
+                "for which call sites can supply one."
+            )
+        reference_days = self.day_count(context.reference_period_start, context.reference_period_end)
+        if reference_days <= 0:
+            raise ValueError(
+                f"Cannot compute ACT/ACT ICMA: non-positive reference period length "
+                f"({context.reference_period_start} to {context.reference_period_end})"
+            )
+        return self.day_count(start, end) / (context.frequency.periods_per_year * reference_days)
+
+
 def _is_last_day_of_february(d: date) -> bool:
     if d.month != 2:
         return False
@@ -170,12 +224,14 @@ class DayCount(str, Enum):
     ACT_360 = "ACT/360"
     ACT_365 = "ACT/365"
     THIRTY_360 = "30/360"
+    ACT_ACT_ICMA = "ACT/ACT-ICMA"
 
 
 _REGISTRY: dict[str, DayCountConvention] = {
     DayCount.ACT_360.value: Actual360(),
     DayCount.ACT_365.value: Actual365Fixed(),
     DayCount.THIRTY_360.value: Thirty360US(),
+    DayCount.ACT_ACT_ICMA.value: ActualActualICMA(),
 }
 
 

@@ -1,6 +1,7 @@
 from .day_count import (
     Actual360,
     Actual365Fixed,
+    ActualActualICMA,
     DayCount,
     DayCountConvention,
     ScheduleContext,
@@ -13,6 +14,7 @@ from .frequency import Frequency
 __all__ = [
     "Actual360",
     "Actual365Fixed",
+    "ActualActualICMA",
     "DayCount",
     "DayCountConvention",
     "ScheduleContext",

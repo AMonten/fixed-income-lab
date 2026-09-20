@@ -11,6 +11,7 @@ from fixed_income.cashflows.schedule import (
     is_business_day,
     subtract_business_days,
 )
+from fixed_income.conventions.calendar import UnitedStatesFederalCalendar
 from fixed_income.conventions.frequency import Frequency
 
 
@@ -98,3 +99,41 @@ def test_subtract_business_days_from_a_weekend_start():
     # 2 business days back from Sunday 2024-01-14: Sat(skip), Fri(1), Thu(2).
     sunday = date(2024, 1, 14)
     assert subtract_business_days(sunday, 2) == date(2024, 1, 11)
+
+
+def test_adjust_business_day_with_calendar_rolls_past_a_holiday():
+    """Regression for #18: business-day adjustment used to know only about
+    weekends. July 4, 2024 is a Thursday -- a business day under the
+    weekend-only default, but a US federal holiday."""
+    july_4th_2024 = date(2024, 7, 4)
+    us_calendar = UnitedStatesFederalCalendar()
+    assert adjust_business_day(july_4th_2024, BusinessDayConvention.FOLLOWING) == july_4th_2024
+    assert adjust_business_day(
+        july_4th_2024, BusinessDayConvention.FOLLOWING, us_calendar
+    ) == date(2024, 7, 5)
+
+
+def test_subtract_business_days_with_calendar_skips_a_holiday():
+    us_calendar = UnitedStatesFederalCalendar()
+    friday_after = date(2024, 7, 5)
+    # 1 business day back from Friday 2024-07-05: under weekend-only that's
+    # Thursday 2024-07-04, but that Thursday is a federal holiday.
+    assert subtract_business_days(friday_after, 1) == date(2024, 7, 4)
+    assert subtract_business_days(friday_after, 1, us_calendar) == date(2024, 7, 3)
+
+
+def test_generate_schedule_with_calendar_moves_payment_date_off_a_holiday():
+    us_calendar = UnitedStatesFederalCalendar()
+    periods_weekend_only = generate_schedule(
+        date(2024, 1, 4), date(2025, 1, 4), Frequency.SEMI_ANNUAL
+    )
+    periods_us_calendar = generate_schedule(
+        date(2024, 1, 4), date(2025, 1, 4), Frequency.SEMI_ANNUAL,
+        calendar=us_calendar,
+    )
+    # July 4, 2024 (an accrual boundary here) is a business day under
+    # weekend-only rules but a US federal holiday.
+    assert periods_weekend_only[0].payment_date == date(2024, 7, 4)
+    assert periods_us_calendar[0].payment_date == date(2024, 7, 5)
+    for period in periods_us_calendar:
+        assert is_business_day(period.payment_date, us_calendar)

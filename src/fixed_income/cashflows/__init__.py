@@ -1,3 +1,4 @@
+from ..conventions.calendar import WEEKEND_ONLY, Calendar, UnitedStatesFederalCalendar, WeekendOnlyCalendar
 from .generator import (
     CashFlow,
     cash_flows_after,
@@ -28,4 +29,8 @@ __all__ = [
     "generate_schedule",
     "generate_schedule_dates",
     "is_business_day",
+    "WEEKEND_ONLY",
+    "Calendar",
+    "UnitedStatesFederalCalendar",
+    "WeekendOnlyCalendar",
 ]

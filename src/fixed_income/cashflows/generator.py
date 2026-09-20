@@ -32,6 +32,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date
 
+from ..conventions.calendar import WEEKEND_ONLY as _WEEKEND_ONLY
+from ..conventions.calendar import Calendar as _Calendar
 from ..conventions.day_count import DayCountConvention, ScheduleContext
 from ..conventions.frequency import Frequency
 from .schedule import BusinessDayConvention as _BusinessDayConvention
@@ -166,9 +168,10 @@ def generate_zero_coupon_cashflow(
     issue_date: date,
     maturity_date: date,
     business_day_convention: _BusinessDayConvention = _BusinessDayConvention.FOLLOWING,
+    calendar: _Calendar = _WEEKEND_ONLY,
 ) -> list[CashFlow]:
     """A single redemption cash flow at maturity — no periodic coupons."""
-    payment_date = adjust_business_day(maturity_date, business_day_convention)
+    payment_date = adjust_business_day(maturity_date, business_day_convention, calendar)
     return [
         CashFlow(
             period_index=0,

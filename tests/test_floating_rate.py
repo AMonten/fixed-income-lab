@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 import pytest
 
+from fixed_income.conventions.calendar import UnitedStatesFederalCalendar
 from fixed_income.conventions.day_count import Actual360
 from fixed_income.conventions.frequency import Frequency
 from fixed_income.instruments.floating_rate import FloatingRateNote
@@ -92,6 +93,25 @@ def test_reset_lag_counts_business_days_not_calendar_days(index):
     naive_calendar_day_result = schedule[0].accrual_start - timedelta(days=2)
     assert frn.reset_date_for(schedule[0]) != naive_calendar_day_result
     assert frn.reset_date_for(schedule[0]).weekday() < 5
+
+
+def test_reset_lag_with_a_real_calendar_skips_a_holiday(index):
+    """Regression for #18: reset_lag_days used to know only about weekends.
+    Accrual start July 8, 2024 (a Monday) lookback 2 business days lands on
+    Thursday July 4 under the weekend-only default -- a US federal holiday."""
+    frn = FloatingRateNote(
+        100.0, 0.0025, date(2024, 7, 8), date(2025, 7, 8), index, Frequency.QUARTERLY, Actual360(),
+        reset_lag_days=2,
+    )
+    schedule = frn.schedule()
+    assert schedule[0].accrual_start == date(2024, 7, 8)
+    assert frn.reset_date_for(schedule[0]) == date(2024, 7, 4)
+
+    frn_with_calendar = FloatingRateNote(
+        100.0, 0.0025, date(2024, 7, 8), date(2025, 7, 8), index, Frequency.QUARTERLY, Actual360(),
+        reset_lag_days=2, calendar=UnitedStatesFederalCalendar(),
+    )
+    assert frn_with_calendar.reset_date_for(schedule[0]) == date(2024, 7, 3)
 
 
 def test_negative_reset_lag_rejected(index):

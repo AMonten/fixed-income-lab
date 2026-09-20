@@ -36,6 +36,7 @@ from datetime import date
 
 from ..cashflows.generator import CashFlow, cash_flows_after
 from ..cashflows.schedule import BusinessDayConvention, SchedulePeriod, add_months, generate_schedule
+from ..conventions.calendar import WEEKEND_ONLY, Calendar
 from ..conventions.day_count import Actual365Fixed, DayCountConvention, ScheduleContext
 from ..conventions.frequency import Frequency
 
@@ -317,6 +318,7 @@ class AmortizingBond:
         frequency: Coupon/amortization payments per year.
         day_count: Day-count convention used to size each period's interest.
         business_day_convention: How payment dates are rolled onto business days.
+        calendar: Which dates count as business days for that roll (weekend-only by default).
     """
 
     original_face: float
@@ -327,6 +329,7 @@ class AmortizingBond:
     frequency: Frequency = Frequency.SEMI_ANNUAL
     day_count: DayCountConvention = field(default_factory=Actual365Fixed)
     business_day_convention: BusinessDayConvention = BusinessDayConvention.FOLLOWING
+    calendar: Calendar = WEEKEND_ONLY
 
     def __post_init__(self) -> None:
         if self.original_face <= 0:
@@ -344,6 +347,7 @@ class AmortizingBond:
         frequency: Frequency = Frequency.SEMI_ANNUAL,
         day_count: DayCountConvention | None = None,
         business_day_convention: BusinessDayConvention = BusinessDayConvention.FOLLOWING,
+        calendar: Calendar = WEEKEND_ONLY,
     ) -> AmortizingBond:
         """Construct a bond that repays equal principal installments each period.
 
@@ -351,7 +355,9 @@ class AmortizingBond:
         reaches exactly zero at maturity.
         """
         dc = day_count or Actual365Fixed()
-        schedule = generate_schedule(issue_date, maturity_date, frequency, business_day_convention)
+        schedule = generate_schedule(
+            issue_date, maturity_date, frequency, business_day_convention, calendar
+        )
         n = len(schedule)
         installment = original_face / n
         repayments = [installment] * n
@@ -359,12 +365,16 @@ class AmortizingBond:
         plan = FullyAmortizingPlan(tuple(repayments))
         return cls(
             original_face, coupon_rate, issue_date, maturity_date, plan,
-            frequency, dc, business_day_convention,
+            frequency, dc, business_day_convention, calendar,
         )
 
     def schedule(self) -> list[SchedulePeriod]:
         return generate_schedule(
-            self.issue_date, self.maturity_date, self.frequency, self.business_day_convention
+            self.issue_date,
+            self.maturity_date,
+            self.frequency,
+            self.business_day_convention,
+            self.calendar,
         )
 
     def amortization_schedule(self) -> list[AmortizationScheduleEntry]:

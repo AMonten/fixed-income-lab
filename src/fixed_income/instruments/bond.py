@@ -24,6 +24,7 @@ from ..cashflows.schedule import (
     adjust_business_day,
     generate_schedule,
 )
+from ..conventions.calendar import WEEKEND_ONLY, Calendar
 from ..conventions.day_count import Actual365Fixed, DayCountConvention
 from ..conventions.frequency import Frequency
 
@@ -40,6 +41,7 @@ class Bond:
         frequency: Coupon payments per year.
         day_count: Day-count convention used to size each coupon.
         business_day_convention: How payment dates are rolled onto business days.
+        calendar: Which dates count as business days for that roll (weekend-only by default).
     """
 
     face_value: float
@@ -49,6 +51,7 @@ class Bond:
     frequency: Frequency = Frequency.SEMI_ANNUAL
     day_count: DayCountConvention = field(default_factory=Actual365Fixed)
     business_day_convention: BusinessDayConvention = BusinessDayConvention.FOLLOWING
+    calendar: Calendar = WEEKEND_ONLY
 
     def __post_init__(self) -> None:
         if self.face_value <= 0:
@@ -58,7 +61,11 @@ class Bond:
 
     def schedule(self) -> list[SchedulePeriod]:
         return generate_schedule(
-            self.issue_date, self.maturity_date, self.frequency, self.business_day_convention
+            self.issue_date,
+            self.maturity_date,
+            self.frequency,
+            self.business_day_convention,
+            self.calendar,
         )
 
     def cash_flows(self) -> list[CashFlow]:
@@ -117,6 +124,7 @@ class ZeroCouponBond:
     frequency: Frequency = Frequency.SEMI_ANNUAL
     day_count: DayCountConvention = field(default_factory=Actual365Fixed)
     business_day_convention: BusinessDayConvention = BusinessDayConvention.FOLLOWING
+    calendar: Calendar = WEEKEND_ONLY
     coupon_rate: float = field(default=0.0, init=False)
 
     def __post_init__(self) -> None:
@@ -131,13 +139,19 @@ class ZeroCouponBond:
                 period_index=0,
                 accrual_start=self.issue_date,
                 accrual_end=self.maturity_date,
-                payment_date=adjust_business_day(self.maturity_date, self.business_day_convention),
+                payment_date=adjust_business_day(
+                    self.maturity_date, self.business_day_convention, self.calendar
+                ),
             )
         ]
 
     def cash_flows(self) -> list[CashFlow]:
         return generate_zero_coupon_cashflow(
-            self.face_value, self.issue_date, self.maturity_date, self.business_day_convention
+            self.face_value,
+            self.issue_date,
+            self.maturity_date,
+            self.business_day_convention,
+            self.calendar,
         )
 
     def cash_flows_after(self, settlement_date: date) -> list[CashFlow]:

@@ -30,6 +30,7 @@ from ..cashflows.schedule import (
     generate_schedule,
     subtract_business_days,
 )
+from ..conventions.calendar import WEEKEND_ONLY, Calendar
 from ..conventions.day_count import Actual360, DayCountConvention
 from ..conventions.frequency import Frequency
 from .rate_index import RateIndex
@@ -52,10 +53,11 @@ class FloatingRateNote:
         business_day_convention: How payment dates are rolled onto business days.
         reset_lag_days: Business days before each period's accrual start that
             the reference rate is observed (a "lookback"). ``0`` means the
-            reset is observed exactly on the accrual start date. "Business
-            day" is weekend-only in V1 (no fixing-specific holiday calendar
-            yet -- see issue #18); which fixing calendar a given index
-            should really use is an open question, tracked in the ROADMAP.
+            reset is observed exactly on the accrual start date.
+        calendar: Which dates count as business days for schedule rolls and
+            for ``reset_lag_days`` (weekend-only by default -- see issue #18;
+            which fixing calendar a given index should really use is a
+            separate, open question, tracked in the ROADMAP).
     """
 
     face_value: float
@@ -67,6 +69,7 @@ class FloatingRateNote:
     day_count: DayCountConvention = field(default_factory=Actual360)
     business_day_convention: BusinessDayConvention = BusinessDayConvention.FOLLOWING
     reset_lag_days: int = 0
+    calendar: Calendar = WEEKEND_ONLY
 
     def __post_init__(self) -> None:
         if self.face_value <= 0:
@@ -78,13 +81,17 @@ class FloatingRateNote:
 
     def schedule(self) -> list[SchedulePeriod]:
         return generate_schedule(
-            self.issue_date, self.maturity_date, self.frequency, self.business_day_convention
+            self.issue_date,
+            self.maturity_date,
+            self.frequency,
+            self.business_day_convention,
+            self.calendar,
         )
 
     def reset_date_for(self, period: SchedulePeriod) -> date:
         """The date the reference rate is observed for ``period``:
         ``reset_lag_days`` business days before accrual start."""
-        return subtract_business_days(period.accrual_start, self.reset_lag_days)
+        return subtract_business_days(period.accrual_start, self.reset_lag_days, self.calendar)
 
     def reset_dates(self) -> list[date]:
         return [self.reset_date_for(p) for p in self.schedule()]

@@ -79,6 +79,11 @@ everything else. This is what lets `risk.duration.dv01`, say, price a bullet
 bond, a floating-rate note (under a fixed forward assumption), and an amortizing
 bond with the exact same code path — it only ever sees `CashFlow` objects.
 
+The interface every instrument shares (`face_value`, `day_count`, `cash_flows()`,
+`cash_flows_after()`) is formalized as a structural `typing.Protocol`,
+`instruments.FixedIncomeInstrument`, so `mypy` verifies each instrument type
+conforms rather than leaving the contract implicit.
+
 ## Installation
 
 ```bash

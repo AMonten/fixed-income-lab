@@ -12,6 +12,7 @@ from .amortizing import (
 )
 from .bond import Bond, ZeroCouponBond
 from .floating_rate import FloatingRateNote
+from .instrument import FixedIncomeInstrument
 from .rate_index import RateIndex, RateObservation
 
 __all__ = [
@@ -28,6 +29,7 @@ __all__ = [
     "Bond",
     "ZeroCouponBond",
     "FloatingRateNote",
+    "FixedIncomeInstrument",
     "RateIndex",
     "RateObservation",
 ]

@@ -37,10 +37,13 @@ class YieldCurve:
         compounding: Compounding convention the zero rates are quoted under.
         interpolation: Interpolation rule between pillar points. Outside the
             pillar range, the curve extrapolates flat (holds the nearest
-            endpoint rate constant). ``LOG_LINEAR`` requires every pillar
-            rate bracketing a query to be strictly positive, since it
-            interpolates in log-rate space; it raises :class:`ValueError`
-            for a zero or negative bracketing rate.
+            endpoint rate constant). ``LOG_LINEAR`` interpolates the natural
+            log of the *discount factor* linearly between the bracketing
+            pillars (standard curve practice), and reports :meth:`zero_rate`
+            as the rate implied by that interpolated discount factor. Because
+            a discount factor is positive by construction, this places no
+            positivity requirement on the zero rate itself — negative rates
+            (EUR/JPY-style regimes) interpolate fine.
     """
 
     tenors: tuple[float, ...]
@@ -61,33 +64,76 @@ class YieldCurve:
         object.__setattr__(self, "_yield_convention", YieldConvention(compounding=self.compounding))
 
     def zero_rate(self, t: float) -> float:
-        """Interpolated (or flat-extrapolated) zero rate at tenor ``t`` years."""
+        """Interpolated (or flat-extrapolated) zero rate at tenor ``t`` years.
+
+        For ``LOG_LINEAR`` this is the rate *implied* by the discount factor
+        obtained from interpolating ``ln(DF)`` linearly between the bracketing
+        pillars — not a log-space interpolation of the rate itself.
+        """
         tenors, rates = self.tenors, self.zero_rates
         if t <= tenors[0]:
             return rates[0]
         if t >= tenors[-1]:
             return rates[-1]
 
+        t0, t1, r0, r1, weight = self._bracket(t)
+        if self.interpolation is Interpolation.FLAT:
+            return r0
+        if self.interpolation is Interpolation.LOG_LINEAR:
+            df = self._log_linear_discount_factor(t0, t1, r0, r1, weight)
+            return self._rate_from_discount_factor(df, t)
+        return r0 + weight * (r1 - r0)
+
+    def discount_factor(self, t: float) -> float:
+        """Discount factor at tenor ``t`` years.
+
+        For ``LOG_LINEAR`` the discount factor is the primary interpolated
+        quantity (``ln(DF)`` linear between pillars); for every other mode it
+        is derived from the interpolated :meth:`zero_rate`. Outside the pillar
+        range the curve extrapolates flat in the rate, so the discount factor
+        there is ``convention.discount_factor(endpoint_rate, t)``.
+        """
+        tenors = self.tenors
+        if self.interpolation is Interpolation.LOG_LINEAR and tenors[0] < t < tenors[-1]:
+            t0, t1, r0, r1, weight = self._bracket(t)
+            return self._log_linear_discount_factor(t0, t1, r0, r1, weight)
+        r = self.zero_rate(t)
+        return self._yield_convention.discount_factor(r, t)
+
+    def _bracket(self, t: float) -> tuple[float, float, float, float, float]:
+        """The pillars bracketing an interior ``t`` and its interpolation weight."""
+        tenors, rates = self.tenors, self.zero_rates
         for i in range(len(tenors) - 1):
             t0, t1 = tenors[i], tenors[i + 1]
             if t0 <= t <= t1:
-                r0, r1 = rates[i], rates[i + 1]
-                weight = (t - t0) / (t1 - t0)
-                if self.interpolation is Interpolation.FLAT:
-                    return r0
-                if self.interpolation is Interpolation.LOG_LINEAR:
-                    if r0 <= 0 or r1 <= 0:
-                        raise ValueError(
-                            "LOG_LINEAR interpolation requires strictly positive zero rates; "
-                            f"got {r0!r} at tenor {t0} and {r1!r} at tenor {t1}"
-                        )
-                    return math.exp(math.log(r0) * (1 - weight) + math.log(r1) * weight)
-                return r0 + weight * (r1 - r0)
+                return t0, t1, rates[i], rates[i + 1], (t - t0) / (t1 - t0)
         raise AssertionError("unreachable")  # pragma: no cover
 
-    def discount_factor(self, t: float) -> float:
-        r = self.zero_rate(t)
-        return self._yield_convention.discount_factor(r, t)
+    def _log_linear_discount_factor(
+        self, t0: float, t1: float, r0: float, r1: float, weight: float
+    ) -> float:
+        """Discount factor from linearly interpolating ``ln(DF)`` between pillars.
+
+        The pillar discount factors are always positive (a discount factor is
+        positive by construction), so ``ln`` is always defined — the zero rates
+        themselves may be negative.
+        """
+        conv = self._yield_convention
+        ln_df0 = math.log(conv.discount_factor(r0, t0))
+        ln_df1 = math.log(conv.discount_factor(r1, t1))
+        return math.exp((1.0 - weight) * ln_df0 + weight * ln_df1)
+
+    def _rate_from_discount_factor(self, df: float, t: float) -> float:
+        """Invert :meth:`YieldConvention.discount_factor`: the zero rate that,
+        under this curve's compounding, produces discount factor ``df`` at
+        tenor ``t``. Interior ``t`` is always strictly positive here."""
+        compounding = self.compounding
+        if compounding is CompoundingConvention.CONTINUOUS:
+            return -math.log(df) / t
+        if compounding is CompoundingConvention.ANNUAL:
+            return df ** (-1.0 / t) - 1.0
+        m = self._yield_convention.periods_per_year
+        return m * (df ** (-1.0 / (m * t)) - 1.0)
 
 
 def present_value_from_curve(

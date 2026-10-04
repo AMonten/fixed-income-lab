@@ -8,9 +8,11 @@ from fixed_income.conventions.day_count import (
     Actual360,
     Actual365Fixed,
     ActualActualICMA,
+    ActualActualISDA,
     DayCount,
     ScheduleContext,
     Thirty360US,
+    ThirtyE360,
     get_day_count_convention,
 )
 from fixed_income.conventions.frequency import Frequency
@@ -55,7 +57,18 @@ def test_thirty_360_last_day_of_february_clamps():
 
 @pytest.mark.parametrize(
     "key",
-    [DayCount.ACT_360, DayCount.ACT_365, DayCount.THIRTY_360, "ACT/360", "ACT/365", "30/360"],
+    [
+        DayCount.ACT_360,
+        DayCount.ACT_365,
+        DayCount.THIRTY_360,
+        DayCount.ACT_ACT_ISDA,
+        DayCount.THIRTY_E_360,
+        "ACT/360",
+        "ACT/365",
+        "30/360",
+        "ACT/ACT-ISDA",
+        "30E/360",
+    ],
 )
 def test_get_day_count_convention_resolves_all_known_keys(key):
     convention = get_day_count_convention(key)
@@ -69,10 +82,12 @@ def test_get_day_count_convention_passthrough_for_instance():
 
 def test_get_day_count_convention_unknown_raises():
     with pytest.raises(ValueError):
-        get_day_count_convention("ACT/ACT-ISDA")
+        get_day_count_convention("ACT/XYZ-made-up")
 
 
-@pytest.mark.parametrize("dc", [Actual360(), Actual365Fixed(), Thirty360US()])
+@pytest.mark.parametrize(
+    "dc", [Actual360(), Actual365Fixed(), Thirty360US(), ActualActualISDA(), ThirtyE360()]
+)
 def test_year_fraction_ignores_schedule_context_for_existing_conventions(dc):
     """Regression for #14: year_fraction() gains an optional ScheduleContext
     parameter, but every convention that exists today must produce exactly
@@ -150,3 +165,94 @@ def test_get_day_count_convention_resolves_act_act_icma_key():
     convention = get_day_count_convention("ACT/ACT-ICMA")
     assert isinstance(convention, ActualActualICMA)
     assert get_day_count_convention(DayCount.ACT_ACT_ICMA) is convention
+
+
+# --- ACT/ACT ISDA (#16) ---------------------------------------------------
+
+
+def test_actual_actual_isda_ignores_schedule_context():
+    """ACT/ACT ISDA is computable from the two dates and the calendar alone, so
+    an (irrelevant) ScheduleContext must not change the result."""
+    dc = ActualActualISDA()
+    start, end = date(2024, 1, 15), date(2024, 7, 15)
+    context = ScheduleContext(start, end, Frequency.SEMI_ANNUAL)
+    assert dc.year_fraction(start, end, context) == dc.year_fraction(start, end)
+
+
+def test_actual_actual_isda_matches_isda_2006_worked_example():
+    """Reference case: derivation.engine=manual (ISDA 2006 §4.16(b), the
+    'Actual/Actual (ISDA)' worked example), tolerance=1e-12. The period
+    2003-11-01 -> 2004-05-01 straddles a year boundary: 61 days fall in the
+    (non-leap) 2003 and 121 in the (leap) 2004, so the fraction is
+    61/365 + 121/366, NOT (end-start)/365."""
+    dc = ActualActualISDA()
+    start, end = date(2003, 11, 1), date(2004, 5, 1)
+    expected = 61 / 365 + 121 / 366  # 0.497724380...
+    assert dc.year_fraction(start, end) == pytest.approx(expected, rel=1e-12)
+
+
+def test_actual_actual_isda_whole_year_is_exactly_one_leap_or_not():
+    """The defining property of the ISDA variant: any whole calendar year is
+    exactly 1.0, whether or not it is a leap year."""
+    dc = ActualActualISDA()
+    assert dc.year_fraction(date(2023, 1, 1), date(2024, 1, 1)) == pytest.approx(1.0)  # non-leap
+    assert dc.year_fraction(date(2024, 1, 1), date(2025, 1, 1)) == pytest.approx(1.0)  # leap
+
+
+def test_actual_actual_isda_within_leap_year_divides_by_366():
+    dc = ActualActualISDA()
+    # Jan 1 -> Jul 1 2024 (leap): 182 actual days over a 366-day year.
+    assert dc.year_fraction(date(2024, 1, 1), date(2024, 7, 1)) == pytest.approx(182 / 366)
+
+
+def test_actual_actual_isda_zero_and_symmetry():
+    dc = ActualActualISDA()
+    assert dc.year_fraction(date(2024, 3, 1), date(2024, 3, 1)) == 0.0
+    forward = dc.year_fraction(date(2023, 11, 1), date(2024, 5, 1))
+    backward = dc.year_fraction(date(2024, 5, 1), date(2023, 11, 1))
+    assert backward == pytest.approx(-forward)
+
+
+def test_get_day_count_convention_resolves_act_act_isda_key():
+    convention = get_day_count_convention("ACT/ACT-ISDA")
+    assert isinstance(convention, ActualActualISDA)
+    assert get_day_count_convention(DayCount.ACT_ACT_ISDA) is convention
+
+
+# --- 30E/360 Eurobond basis (#17) -----------------------------------------
+
+
+def test_thirty_e_360_regular_month():
+    dc = ThirtyE360()
+    assert dc.day_count(date(2024, 1, 15), date(2024, 2, 15)) == 30
+
+
+def test_thirty_e_360_full_year_is_one():
+    dc = ThirtyE360()
+    assert dc.day_count(date(2024, 1, 1), date(2025, 1, 1)) == 360
+    assert dc.year_fraction(date(2024, 1, 1), date(2025, 1, 1)) == pytest.approx(1.0)
+
+
+def test_thirty_e_360_clamps_both_day_numbers_unconditionally():
+    dc = ThirtyE360()
+    # 31 -> 30 at both ends, independently.
+    assert dc.day_count(date(2024, 1, 31), date(2024, 3, 31)) == 60
+    assert dc.day_count(date(2024, 5, 31), date(2024, 11, 30)) == 180
+
+
+def test_thirty_e_360_differs_from_us_at_end_of_february():
+    """Key contrast with 30/360 US: 30E/360 has NO end-of-February rule, so a
+    Feb-28 start is left at 28 (not bumped to 30), and a 31st end is clamped to
+    30 regardless of the start. 2023-02-28 -> 2023-03-31 is therefore 32 days
+    under 30E/360 but 30 under 30/360 US."""
+    eur = ThirtyE360()
+    us = Thirty360US()
+    start, end = date(2023, 2, 28), date(2023, 3, 31)
+    assert eur.day_count(start, end) == 32
+    assert us.day_count(start, end) == 30
+
+
+def test_get_day_count_convention_resolves_thirty_e_360_key():
+    convention = get_day_count_convention("30E/360")
+    assert isinstance(convention, ThirtyE360)
+    assert get_day_count_convention(DayCount.THIRTY_E_360) is convention

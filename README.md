@@ -140,7 +140,7 @@ decimals (5% = `0.05`).
 
 ### Day-count conventions
 
-A day-count convention turns a period `[start, end)` into a year fraction. Three are
+A day-count convention turns a period `[start, end)` into a year fraction. Five are
 implemented; more can be added by writing one class and registering it
 (`conventions.day_count.register_day_count_convention`):
 
@@ -148,7 +148,15 @@ implemented; more can be added by writing one class and registering it
 |---|---|
 | ACT/360 | `year_fraction = (end - start).days / 360` |
 | ACT/365 (Fixed) | `year_fraction = (end - start).days / 365` |
-| 30/360 (Bond Basis) | `days = (Y2-Y1)*360 + (M2-M1)*30 + (D2-D1)`, with `D1 -> 30` if `D1` is the 31st or last day of February, and `D2 -> 30` if `D2` is 31 and `D1` was already adjusted; `year_fraction = days / 360` |
+| 30/360 (US Bond Basis) | `days = (Y2-Y1)*360 + (M2-M1)*30 + (D2-D1)`, with `D1 -> 30` if `D1` is the 31st or last day of February, and `D2 -> 30` if `D2` is 31 and `D1` was already adjusted; `year_fraction = days / 360` |
+| 30E/360 (Eurobond basis) | `days = (Y2-Y1)*360 + (M2-M1)*30 + (min(D2,30) - min(D1,30))`; both day numbers capped at 30 unconditionally — no end-of-February rule and `D2` clamped independently of `D1`; `year_fraction = days / 360` |
+| ACT/ACT ICMA | `year_fraction = actual_days[start, end] / (frequency * actual_days_in_reference_period)`; coupon-period based, so it requires a `ScheduleContext` (the nominal coupon period `[start, end]` sits in) and raises without one |
+| ACT/ACT ISDA | Period split at calendar-year boundaries: `year_fraction = days_in_leap_years / 366 + days_in_non_leap_years / 365`; any whole calendar year is exactly `1.0` |
+
+The further `30E/360 ISDA` variant is not yet implemented: its last-day-of-month
+rule depends on whether `end` is the instrument's maturity date, which the
+`year_fraction(start, end, context)` signature does not carry (the same structural
+limit that makes ACT/ACT ICMA require a `ScheduleContext`).
 
 ### Cash-flow generation
 

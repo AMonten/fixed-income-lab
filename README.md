@@ -331,7 +331,7 @@ pytest --cov=fixed_income --cov-report=term-missing   # with coverage
 ruff check src/ tests/ app/                     # lint
 ```
 
-118 tests cover day-count conventions, schedule generation (including stub
+195 tests cover day-count conventions, schedule generation (including stub
 periods, month-end clamping, business-day rolls), accrued-interest edge cases
 (on the issue date, on a coupon date, before issue, on/after maturity), price/
 yield round-tripping, duration/convexity accuracy (verified against a Taylor

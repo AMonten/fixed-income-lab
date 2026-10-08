@@ -56,6 +56,30 @@ Supported conventions
     where the reference period comes from a :class:`ScheduleContext` (see
     above) — this convention *requires* one and raises without it. Used by
     most fixed-rate non-USD sovereign and international bonds.
+
+``ACT/ACT-ISDA`` (:class:`ActualActualISDA`)
+    The calendar-split actual/actual convention (ISDA 2006 §4.16(b)): the
+    portion of the period falling in each calendar year is divided by that
+    year's actual length (365 or 366), and the pieces summed —
+
+    ``year_fraction = days_in_leap_years / 366 + days_in_non_leap_years / 365``.
+
+    Unlike ACT/ACT ICMA this needs no coupon-period context (it's computed
+    from the two dates and the calendar alone), so it accepts and ignores
+    ``context``.
+
+``30E/360`` (:class:`ThirtyE360`)
+    The "Eurobond basis" 30/360 variant (ISDA 2006 §4.16(g)): both day numbers
+    are capped at 30 *unconditionally* —
+
+    ``days = (Y2-Y1)*360 + (M2-M1)*30 + (min(D2,30) - min(D1,30))``.
+
+    It differs from :class:`Thirty360US` only at month ends: there is no
+    end-of-February special case and ``D2`` is clamped independently of
+    ``D1``. (The further ``30E/360 ISDA`` variant, whose last-day-of-month rule
+    depends on whether ``end`` is the maturity date, is not implemented — that
+    maturity flag isn't carried by the ``year_fraction`` signature, the same
+    structural limit that made ACT/ACT ICMA need a :class:`ScheduleContext`.)
 """
 
 from __future__ import annotations
@@ -211,6 +235,68 @@ class ActualActualICMA(DayCountConvention):
         return self.day_count(start, end) / (context.frequency.periods_per_year * reference_days)
 
 
+class ActualActualISDA(DayCountConvention):
+    """ACT/ACT ISDA (ISDA 2006 §4.16(b)): the calendar-split actual/actual
+    convention.
+
+    The period is split at calendar-year boundaries; the days falling in each
+    year are divided by that year's own length (366 in a leap year, 365
+    otherwise) and the pieces are summed::
+
+        year_fraction = days_in_leap_years / 366 + days_in_non_leap_years / 365
+
+    A whole calendar year always contributes exactly ``1.0`` (leap or not),
+    which is the defining feature of the ISDA variant. Unlike ACT/ACT ICMA this
+    is computable from the two dates and the calendar alone, so it accepts and
+    ignores ``context``.
+    """
+
+    name = "ACT/ACT-ISDA"
+
+    def day_count(self, start: date, end: date) -> int:
+        return (end - start).days
+
+    def year_fraction(self, start: date, end: date, context: ScheduleContext | None = None) -> float:
+        if start == end:
+            return 0.0
+        if end < start:
+            return -self.year_fraction(end, start)
+
+        year_start, year_end = start.year, end.year
+        days_in_start_year = 366.0 if calendar.isleap(year_start) else 365.0
+
+        if year_start == year_end:
+            return (end - start).days / days_in_start_year
+
+        days_in_end_year = 366.0 if calendar.isleap(year_end) else 365.0
+        first_stub = (date(year_start + 1, 1, 1) - start).days / days_in_start_year
+        last_stub = (end - date(year_end, 1, 1)).days / days_in_end_year
+        whole_years = year_end - year_start - 1
+        return first_stub + last_stub + whole_years
+
+
+class ThirtyE360(DayCountConvention):
+    """30E/360 ("Eurobond basis", ISDA 2006 §4.16(g)): every month treated as
+    30 days, with both day numbers capped at 30 unconditionally.
+
+    ``days = (Y2-Y1)*360 + (M2-M1)*30 + (min(D2,30) - min(D1,30))``
+
+    This differs from :class:`Thirty360US` only at month ends: there is no
+    end-of-February adjustment, and ``D2`` is clamped to 30 independently of
+    whether ``D1`` was clamped.
+    """
+
+    name = "30E/360"
+
+    def day_count(self, start: date, end: date) -> int:
+        d1 = min(start.day, 30)
+        d2 = min(end.day, 30)
+        return (end.year - start.year) * 360 + (end.month - start.month) * 30 + (d2 - d1)
+
+    def year_fraction(self, start: date, end: date, context: ScheduleContext | None = None) -> float:
+        return self.day_count(start, end) / 360.0
+
+
 def _is_last_day_of_february(d: date) -> bool:
     if d.month != 2:
         return False
@@ -225,6 +311,8 @@ class DayCount(str, Enum):
     ACT_365 = "ACT/365"
     THIRTY_360 = "30/360"
     ACT_ACT_ICMA = "ACT/ACT-ICMA"
+    ACT_ACT_ISDA = "ACT/ACT-ISDA"
+    THIRTY_E_360 = "30E/360"
 
 
 _REGISTRY: dict[str, DayCountConvention] = {
@@ -232,6 +320,8 @@ _REGISTRY: dict[str, DayCountConvention] = {
     DayCount.ACT_365.value: Actual365Fixed(),
     DayCount.THIRTY_360.value: Thirty360US(),
     DayCount.ACT_ACT_ICMA.value: ActualActualICMA(),
+    DayCount.ACT_ACT_ISDA.value: ActualActualISDA(),
+    DayCount.THIRTY_E_360.value: ThirtyE360(),
 }
 
 

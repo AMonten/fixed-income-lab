@@ -112,10 +112,30 @@ def test_yield_curve_exact_pillar_point():
     assert curve.zero_rate(2.0) == pytest.approx(0.025)
 
 
-def test_yield_curve_log_linear_interpolation():
+def test_yield_curve_log_linear_interpolates_ln_discount_factor():
+    """#22: LOG_LINEAR interpolates ln(discount factor) linearly between
+    pillars, then reports the implied zero rate. Reference derived by hand
+    (annual compounding), tolerance 1e-12."""
     curve = YieldCurve(tenors=(1.0, 3.0), zero_rates=(0.02, 0.04), interpolation=Interpolation.LOG_LINEAR)
-    expected = math.exp(math.log(0.02) * 0.5 + math.log(0.04) * 0.5)
-    assert curve.zero_rate(2.0) == pytest.approx(expected)
+    # pillar discount factors under annual compounding
+    df0 = 1.02**-1
+    df1 = 1.04**-3
+    # t=2.0 sits halfway (w=0.5) between tenors 1 and 3
+    expected_df = math.exp(0.5 * math.log(df0) + 0.5 * math.log(df1))
+    expected_rate = expected_df ** (-1.0 / 2.0) - 1.0
+
+    assert curve.discount_factor(2.0) == pytest.approx(expected_df, rel=1e-12)
+    assert curve.zero_rate(2.0) == pytest.approx(expected_rate, rel=1e-12)
+    # discount_factor and zero_rate stay mutually consistent
+    assert curve.discount_factor(2.0) == pytest.approx((1.0 + curve.zero_rate(2.0)) ** -2.0, rel=1e-12)
+
+
+def test_yield_curve_log_linear_exact_at_pillars():
+    curve = YieldCurve(tenors=(1.0, 3.0), zero_rates=(0.02, 0.04), interpolation=Interpolation.LOG_LINEAR)
+    assert curve.zero_rate(1.0) == pytest.approx(0.02)
+    assert curve.zero_rate(3.0) == pytest.approx(0.04)
+    assert curve.discount_factor(1.0) == pytest.approx(1.02**-1)
+    assert curve.discount_factor(3.0) == pytest.approx(1.04**-3)
 
 
 def test_yield_curve_flat_interpolation_holds_left_pillar():
@@ -123,28 +143,41 @@ def test_yield_curve_flat_interpolation_holds_left_pillar():
     assert curve.zero_rate(2.9) == pytest.approx(0.02)
 
 
-def test_yield_curve_log_linear_rejects_negative_bracketing_rate():
+def test_yield_curve_log_linear_handles_negative_bracketing_rate():
+    """#22 'done when': a curve with a negative zero rate at a bracketing
+    pillar interpolates under LOG_LINEAR without raising ValueError (the old
+    log-rate implementation could not represent negative rates at all)."""
     curve = YieldCurve(
-        tenors=(1.0, 5.0), zero_rates=(-0.001, 0.02), interpolation=Interpolation.LOG_LINEAR
+        tenors=(1.0, 5.0), zero_rates=(-0.005, 0.02), interpolation=Interpolation.LOG_LINEAR
     )
-    with pytest.raises(ValueError, match="strictly positive"):
-        curve.zero_rate(3.0)
+    # Must not raise.
+    rate = curve.zero_rate(3.0)
+    df = curve.discount_factor(3.0)
+
+    df0 = (1.0 - 0.005) ** -1  # > 1, since the near rate is negative
+    df1 = 1.02**-5
+    expected_df = math.exp(0.5 * math.log(df0) + 0.5 * math.log(df1))  # w=0.5 at t=3
+    assert df == pytest.approx(expected_df, rel=1e-12)
+    # implied rate lands between the two pillar rates
+    assert -0.005 < rate < 0.02
 
 
-def test_yield_curve_log_linear_rejects_zero_bracketing_rate():
-    curve = YieldCurve(tenors=(1.0, 5.0), zero_rates=(0.0, 0.02), interpolation=Interpolation.LOG_LINEAR)
-    with pytest.raises(ValueError, match="strictly positive"):
-        curve.zero_rate(3.0)
-
-
-def test_yield_curve_log_linear_allows_positive_rates_outside_bracket():
-    # A negative/zero rate elsewhere on the curve is fine as long as it
-    # doesn't bracket the queried tenor.
+def test_yield_curve_log_linear_continuous_matches_integrated_rate():
+    """Under continuous compounding ln(DF) = -r*t, so linearly interpolating
+    ln(DF) means the implied rate is the tenor-weighted 'r*t' divided by t.
+    Checked with a negative near-rate to confirm negatives are first-class."""
     curve = YieldCurve(
-        tenors=(1.0, 3.0, 5.0), zero_rates=(-0.001, 0.02, 0.03), interpolation=Interpolation.LOG_LINEAR
+        tenors=(1.0, 4.0),
+        zero_rates=(-0.01, 0.03),
+        compounding=CompoundingConvention.CONTINUOUS,
+        interpolation=Interpolation.LOG_LINEAR,
     )
-    expected = math.exp(math.log(0.02) * 0.5 + math.log(0.03) * 0.5)
-    assert curve.zero_rate(4.0) == pytest.approx(expected)
+    t = 2.0
+    w = (t - 1.0) / (4.0 - 1.0)
+    # -r_t * t = (1-w)*(-r0*t0) + w*(-r1*t1)
+    expected_rate = ((1 - w) * (-0.01 * 1.0) + w * (0.03 * 4.0)) / t
+    assert curve.zero_rate(t) == pytest.approx(expected_rate, rel=1e-12)
+    assert curve.discount_factor(t) == pytest.approx(math.exp(-expected_rate * t), rel=1e-12)
 
 
 def test_present_value_from_curve_uses_per_maturity_zero_rate():

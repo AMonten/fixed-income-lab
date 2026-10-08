@@ -280,8 +280,11 @@ Interest / Principal Repayment / Ending Principal`, with interest computed on th
 ### Yield curve and scenario analysis
 
 `pricing.curves.YieldCurve` is a set of `(tenor, zero rate)` pillar points with
-linear (or log-linear, or flat) interpolation and flat extrapolation beyond the
-ends — deliberately not a bootstrapping framework. `risk.scenarios.run_rate_shock_scenarios`
+linear, log-linear, or flat interpolation and flat extrapolation beyond the
+ends — deliberately not a bootstrapping framework. Log-linear interpolates the
+natural log of the *discount factor* between pillars (standard curve practice)
+and reports the implied zero rate, so it handles negative rates as well as
+positive ones. `risk.scenarios.run_rate_shock_scenarios`
 applies parallel yield shocks (default: -100bp, -50bp, 0, +50bp, +100bp) and
 reports, at each shock, the fully repriced value alongside the duration-only and
 duration+convexity Taylor-series estimates — making the approximation error
@@ -342,10 +345,6 @@ use**. Specific, deliberate V1 simplifications:
   cum-coupon.
 - **No market-curve bootstrapping.** `YieldCurve` interpolates a hand-specified
   set of zero rates; it does not construct a curve from instrument quotes.
-- **`LOG_LINEAR` curve interpolation requires strictly positive zero rates.**
-  It interpolates in log-rate space, so it raises `ValueError` if either
-  pillar rate bracketing a query is zero or negative (e.g. a negative-rate
-  curve) — use `LINEAR` or `FLAT` interpolation for those.
 - **Floating-rate note duration is a known simplification.** Because the forward
   assumption used to fix an FRN's cash flows isn't linked to the yield being
   shocked, discounting those (now-fixed) cash flows at a different yield

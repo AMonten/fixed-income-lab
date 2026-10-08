@@ -286,7 +286,11 @@ over a list of positions, each an actual par amount paired with a per-100-par
 `SecurityAnalytics` snapshot: total market value, weighted yield, weighted
 modified duration, weighted convexity, additive DV01, and maturity distribution.
 Portfolio analytics is secondary to security-level analytics — it re-derives
-nothing, only weights and sums.
+nothing, only weights and sums. The roll-up is taken as of a single
+`valuation_date` and in a single currency: every position's analytics must be
+priced as of that date (positions may still *settle* on different dates), and
+mixing currencies raises rather than silently summing non-additive values —
+convert to a common base currency first.
 
 ## Streamlit app
 

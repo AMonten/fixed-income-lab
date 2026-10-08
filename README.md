@@ -290,7 +290,10 @@ nothing, only weights and sums. The roll-up is taken as of a single
 `valuation_date` and in a single currency: every position's analytics must be
 priced as of that date (positions may still *settle* on different dates), and
 mixing currencies raises rather than silently summing non-additive values —
-convert to a common base currency first.
+convert to a common base currency first. Positions may be long or short
+(negative par): market value and DV01 carry the sign, so a short hedge offsets
+a long, while the weighted averages weight by *gross* market value so a
+dollar-neutral book still has well-defined weights.
 
 ## Streamlit app
 

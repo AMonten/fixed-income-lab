@@ -19,6 +19,14 @@ same footing:
   currency. Summing across currencies is meaningless without an FX conversion
   this layer does not perform, so mixed currencies are rejected rather than
   silently summed.
+
+Positions may be **long or short** (negative ``par_amount``): a short's market
+value and DV01 carry a negative sign, so a short hedge's DV01 offsets a long's
+and a hedged book can net to ~0 DV01. Reported ``market_value`` is the *net*
+(signed) sum, while the weighted averages (yield, duration, convexity) and the
+maturity distribution weight by *gross* (absolute) market value — otherwise a
+dollar-neutral long/short book, whose net market value is zero, would have no
+well-defined weights at all.
 """
 
 from __future__ import annotations
@@ -35,7 +43,8 @@ class PortfolioPosition:
 
     Attributes:
         identifier: A label for the position (e.g. CUSIP, ticker, name).
-        par_amount: The actual notional held (not per-100 par).
+        par_amount: The actual notional held (not per-100 par). Positive for a
+            long position, negative for a short; must be non-zero.
         maturity_date: The security's maturity date.
         analytics: Per-100-par price/yield/risk snapshot for this security.
             Its ``settlement_date`` is the *as-of* (valuation) date the
@@ -58,8 +67,8 @@ class PortfolioPosition:
     trade_date: date | None = None
 
     def __post_init__(self) -> None:
-        if self.par_amount <= 0:
-            raise ValueError("par_amount must be positive")
+        if self.par_amount == 0:
+            raise ValueError("par_amount must be non-zero (positive for long, negative for short)")
         if not self.currency:
             raise ValueError("currency must be a non-empty currency code")
         if self.trade_date is not None and self.settlement_date < self.trade_date:
@@ -85,7 +94,13 @@ class PortfolioPosition:
 
 @dataclass(frozen=True)
 class PortfolioAnalytics:
-    """Market-value-weighted analytics across a set of positions."""
+    """Analytics across a set of positions.
+
+    ``market_value``/``clean_market_value`` are *net* (signed) sums and ``dv01``
+    is the signed additive total, so short positions offset long ones. The
+    weighted averages and ``maturity_distribution`` weight by *gross* (absolute)
+    market value (see :func:`analyze_portfolio`).
+    """
 
     valuation_date: date
     """The common "as of" date every position's analytics were priced for."""
@@ -98,7 +113,8 @@ class PortfolioAnalytics:
     dv01: float
     weighted_convexity: float
     maturity_distribution: tuple[tuple[str, date, float], ...]
-    """``(identifier, maturity_date, weight)`` by dirty market-value share."""
+    """``(identifier, maturity_date, weight)`` by gross (absolute) dirty
+    market-value share; weights are non-negative and sum to 1."""
 
 
 def analyze_portfolio(
@@ -107,13 +123,17 @@ def analyze_portfolio(
 ) -> PortfolioAnalytics:
     """Roll up a list of positions into portfolio-level analytics.
 
-    Weighting is by dirty market value throughout (weighted yield, weighted
-    modified duration, weighted convexity); DV01 is additive across positions.
+    The weighted averages (yield, modified duration, convexity) and the maturity
+    distribution weight by *gross* (absolute) dirty market value, so a long/short
+    book — including a dollar-neutral hedge whose net market value is zero — has
+    well-defined weights. ``market_value``/``clean_market_value`` are reported as
+    *net* (signed) sums, and DV01 is the signed additive total, so a short
+    position's DV01 offsets a long's.
 
     Args:
         positions: The holdings to aggregate. Must be non-empty, share a single
             ``currency``, and each carry an analytics snapshot priced as of
-            ``valuation_date``.
+            ``valuation_date``. Positions may be long or short.
         valuation_date: The "as of" date the roll-up is reported for. Every
             position's ``analytics.settlement_date`` (its pricing/as-of date)
             must equal this; positions priced as of a different date are
@@ -122,7 +142,7 @@ def analyze_portfolio(
     Raises:
         ValueError: If ``positions`` is empty, the positions span more than one
             currency, any position's analytics were priced as of a date other
-            than ``valuation_date``, or total market value is zero.
+            than ``valuation_date``, or gross market value is zero.
     """
     if not positions:
         raise ValueError("Portfolio must contain at least one position")
@@ -147,11 +167,12 @@ def analyze_portfolio(
         )
 
     total_market_value = sum(p.market_value for p in positions)
-    if total_market_value == 0:
-        raise ValueError("Total portfolio market value is zero; cannot compute weighted analytics")
+    gross_market_value = sum(abs(p.market_value) for p in positions)
+    if gross_market_value == 0:
+        raise ValueError("Portfolio gross market value is zero; cannot compute weighted analytics")
 
     def weighted(metric_fn) -> float:
-        return sum(p.market_value * metric_fn(p.analytics) for p in positions) / total_market_value
+        return sum(abs(p.market_value) * metric_fn(p.analytics) for p in positions) / gross_market_value
 
     weighted_yield = weighted(lambda a: a.yield_to_maturity)
     weighted_modified_duration = weighted(lambda a: a.modified_duration)
@@ -160,7 +181,7 @@ def analyze_portfolio(
     total_clean_market_value = sum(p.clean_market_value for p in positions)
 
     maturity_distribution = tuple(
-        (p.identifier, p.maturity_date, p.market_value / total_market_value) for p in positions
+        (p.identifier, p.maturity_date, abs(p.market_value) / gross_market_value) for p in positions
     )
 
     return PortfolioAnalytics(

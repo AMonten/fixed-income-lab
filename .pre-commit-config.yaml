@@ -1,14 +1,14 @@
 # Run `pre-commit install` once after `pip install -e ".[dev]"`.
-# Scope matches CI: src/, tests/ and app/ (notebooks are not linted).
+# Scope: src/, tests/, app/ and scripts/ (notebooks are not linted).
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.5
     hooks:
       - id: ruff-check
         args: [--fix]
-        files: ^(src|tests|app)/
+        files: ^(src|tests|app|scripts)/
       - id: ruff-format
-        files: ^(src|tests|app)/
+        files: ^(src|tests|app|scripts)/
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:
@@ -16,6 +16,6 @@ repos:
       - id: check-toml
       - id: check-merge-conflict
       - id: end-of-file-fixer
-        files: ^(src|tests|app)/
+        files: ^(src|tests|app|scripts)/
       - id: trailing-whitespace
-        files: ^(src|tests|app)/
+        files: ^(src|tests|app|scripts)/

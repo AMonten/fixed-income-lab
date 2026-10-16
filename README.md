@@ -126,12 +126,12 @@ print(f"Convexity:           {result.convexity:.4f}")
 ```
 
 ```
-Clean price:        102.5024
-Dirty price:         103.7490
-Accrued interest:    1.2466
-Modified duration:   4.9132
-DV01 (per 100 par):  0.050974
-Convexity:           28.7726
+Clean price:        102.5016
+Dirty price:         103.7516
+Accrued interest:    1.2500
+Modified duration:   4.9081
+DV01 (per 100 par):  0.050922
+Convexity:           28.7150
 ```
 
 More worked examples — zero-coupon bonds, floating-rate notes, amortizing/sinkable
@@ -332,6 +332,12 @@ ruff check src/ tests/ app/                     # lint
 ruff format src/ tests/ app/                    # format
 pre-commit install                              # run ruff + hygiene hooks on every commit
 ```
+
+CI also builds the sdist and wheel (`python -m build` + `twine check`), installs the
+wheel into a clean virtualenv and runs [`scripts/smoke_test_wheel.py`](scripts/smoke_test_wheel.py)
+against it (import from site-packages, `py.typed` shipped, Quickstart numbers above),
+and builds the API reference with pdoc (`pip install -e ".[docs]"` then
+`python scripts/build_docs.py`, output in `site/`).
 
 195 tests cover day-count conventions, schedule generation (including stub
 periods, month-end clamping, business-day rolls), accrued-interest edge cases

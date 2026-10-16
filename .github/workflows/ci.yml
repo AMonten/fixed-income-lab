@@ -33,3 +33,25 @@ jobs:
         run: mypy src/
       - name: Run tests
         run: pytest --cov=fixed_income --cov-report=term-missing --cov-fail-under=95
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build sdist and wheel
+        run: |
+          pip install build twine
+          python -m build
+          twine check --strict dist/*
+      - name: Install the wheel in a clean venv and smoke-test it
+        run: |
+          python -m venv /tmp/wheel-env
+          /tmp/wheel-env/bin/pip install dist/*.whl
+          cd /tmp && /tmp/wheel-env/bin/python "$GITHUB_WORKSPACE/scripts/smoke_test_wheel.py"
+      - name: Build API docs (pdoc, warnings are errors)
+        run: |
+          pip install -e ".[docs]"
+          python scripts/build_docs.py site

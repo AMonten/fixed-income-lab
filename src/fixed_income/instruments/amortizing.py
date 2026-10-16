@@ -355,17 +355,22 @@ class AmortizingBond:
         reaches exactly zero at maturity.
         """
         dc = day_count or Actual365Fixed()
-        schedule = generate_schedule(
-            issue_date, maturity_date, frequency, business_day_convention, calendar
-        )
+        schedule = generate_schedule(issue_date, maturity_date, frequency, business_day_convention, calendar)
         n = len(schedule)
         installment = original_face / n
         repayments = [installment] * n
         repayments[-1] = original_face - sum(repayments[:-1])
         plan = FullyAmortizingPlan(tuple(repayments))
         return cls(
-            original_face, coupon_rate, issue_date, maturity_date, plan,
-            frequency, dc, business_day_convention, calendar,
+            original_face,
+            coupon_rate,
+            issue_date,
+            maturity_date,
+            plan,
+            frequency,
+            dc,
+            business_day_convention,
+            calendar,
         )
 
     def schedule(self) -> list[SchedulePeriod]:

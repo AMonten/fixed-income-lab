@@ -17,14 +17,18 @@ from fixed_income.instruments.amortizing import (
 
 
 def test_level_principal_fully_amortizes_to_zero():
-    bond = AmortizingBond.with_level_principal(1_000_000.0, 0.06, date(2022, 1, 1), date(2027, 1, 1), Frequency.SEMI_ANNUAL)
+    bond = AmortizingBond.with_level_principal(
+        1_000_000.0, 0.06, date(2022, 1, 1), date(2027, 1, 1), Frequency.SEMI_ANNUAL
+    )
     entries = bond.amortization_schedule()
     assert entries[-1].end_principal == pytest.approx(0.0, abs=1e-6)
     assert sum(e.principal_repayment for e in entries) == pytest.approx(1_000_000.0)
 
 
 def test_level_principal_repays_equal_installments():
-    bond = AmortizingBond.with_level_principal(1_000_000.0, 0.06, date(2022, 1, 1), date(2027, 1, 1), Frequency.SEMI_ANNUAL)
+    bond = AmortizingBond.with_level_principal(
+        1_000_000.0, 0.06, date(2022, 1, 1), date(2027, 1, 1), Frequency.SEMI_ANNUAL
+    )
     entries = bond.amortization_schedule()
     installments = [e.principal_repayment for e in entries]
     # all but possibly the last are identical
@@ -32,7 +36,9 @@ def test_level_principal_repays_equal_installments():
 
 
 def test_interest_computed_on_declining_balance():
-    bond = AmortizingBond.with_level_principal(1_000_000.0, 0.06, date(2022, 1, 1), date(2027, 1, 1), Frequency.SEMI_ANNUAL)
+    bond = AmortizingBond.with_level_principal(
+        1_000_000.0, 0.06, date(2022, 1, 1), date(2027, 1, 1), Frequency.SEMI_ANNUAL
+    )
     entries = bond.amortization_schedule()
     for prev, curr in zip(entries, entries[1:]):  # noqa: B905 - intentionally mismatched lengths (pairwise)
         assert curr.begin_principal == pytest.approx(prev.end_principal)
@@ -43,7 +49,9 @@ def test_interest_computed_on_declining_balance():
 
 
 def test_current_factor_and_face_over_time():
-    bond = AmortizingBond.with_level_principal(1_000_000.0, 0.06, date(2022, 1, 1), date(2027, 1, 1), Frequency.SEMI_ANNUAL)
+    bond = AmortizingBond.with_level_principal(
+        1_000_000.0, 0.06, date(2022, 1, 1), date(2027, 1, 1), Frequency.SEMI_ANNUAL
+    )
     assert bond.current_factor(bond.issue_date) == pytest.approx(1.0)
     assert bond.current_factor(bond.maturity_date) == pytest.approx(0.0, abs=1e-6)
     assert bond.percent_amortized(bond.issue_date) == pytest.approx(0.0)
@@ -134,17 +142,23 @@ def test_amortizing_bond_period_interest_receives_schedule_context():
 
 
 def test_factor_history_current_face_matches_spec_example():
-    history = FactorHistory(original_face=10_000_000.0, observations=(FactorObservation(date(2023, 7, 1), 0.734512),))
+    history = FactorHistory(
+        original_face=10_000_000.0, observations=(FactorObservation(date(2023, 7, 1), 0.734512),)
+    )
     assert history.current_face_on(date(2023, 8, 1)) == pytest.approx(7_345_120.0)
 
 
 def test_factor_history_defaults_to_full_factor_before_first_observation():
-    history = FactorHistory(original_face=10_000_000.0, observations=(FactorObservation(date(2023, 7, 1), 0.5),))
+    history = FactorHistory(
+        original_face=10_000_000.0, observations=(FactorObservation(date(2023, 7, 1), 0.5),)
+    )
     assert history.factor_on(date(2023, 1, 1)) == pytest.approx(1.0)
 
 
 def test_factor_history_percent_amortized_and_paydown():
-    history = FactorHistory(original_face=10_000_000.0, observations=(FactorObservation(date(2023, 7, 1), 0.8),))
+    history = FactorHistory(
+        original_face=10_000_000.0, observations=(FactorObservation(date(2023, 7, 1), 0.8),)
+    )
     assert history.percent_amortized_on(date(2023, 8, 1)) == pytest.approx(0.2)
     assert history.paydown_on(date(2023, 8, 1)) == pytest.approx(2_000_000.0)
 
@@ -217,7 +231,9 @@ def test_factor_amortization_plan_works_with_projected_factor_path():
         points=(ProjectedFactorPoint(date(2022, 7, 1), 0.9), ProjectedFactorPoint(date(2023, 1, 1), 0.8)),
     )
     plan = FactorAmortizationPlan(path)
-    bond = AmortizingBond(10_000_000.0, 0.045, date(2022, 1, 1), date(2023, 7, 1), plan, Frequency.SEMI_ANNUAL)
+    bond = AmortizingBond(
+        10_000_000.0, 0.045, date(2022, 1, 1), date(2023, 7, 1), plan, Frequency.SEMI_ANNUAL
+    )
     entries = bond.amortization_schedule()
     assert entries[0].end_principal == pytest.approx(9_000_000.0)
     assert entries[1].end_principal == pytest.approx(8_000_000.0)
@@ -229,7 +245,9 @@ def test_factor_amortization_plan_drives_bond_paydown():
         observations=(FactorObservation(date(2022, 7, 1), 0.9), FactorObservation(date(2023, 1, 1), 0.8)),
     )
     plan = FactorAmortizationPlan(history)
-    bond = AmortizingBond(10_000_000.0, 0.045, date(2022, 1, 1), date(2023, 7, 1), plan, Frequency.SEMI_ANNUAL)
+    bond = AmortizingBond(
+        10_000_000.0, 0.045, date(2022, 1, 1), date(2023, 7, 1), plan, Frequency.SEMI_ANNUAL
+    )
     entries = bond.amortization_schedule()
     assert entries[0].end_principal == pytest.approx(9_000_000.0)
     assert entries[1].end_principal == pytest.approx(8_000_000.0)
@@ -241,7 +259,9 @@ def test_amortizing_bond_face_value_alias_matches_original_face():
 
 
 def test_amortizing_bond_cash_flows_track_amortization_schedule():
-    bond = AmortizingBond.with_level_principal(1_000_000.0, 0.06, date(2022, 1, 1), date(2027, 1, 1), Frequency.SEMI_ANNUAL)
+    bond = AmortizingBond.with_level_principal(
+        1_000_000.0, 0.06, date(2022, 1, 1), date(2027, 1, 1), Frequency.SEMI_ANNUAL
+    )
     cfs = bond.cash_flows()
     entries = bond.amortization_schedule()
     for cf, entry in zip(cfs, entries, strict=True):

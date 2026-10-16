@@ -109,9 +109,7 @@ class YieldCurve:
                 return t0, t1, rates[i], rates[i + 1], (t - t0) / (t1 - t0)
         raise AssertionError("unreachable")  # pragma: no cover
 
-    def _log_linear_discount_factor(
-        self, t0: float, t1: float, r0: float, r1: float, weight: float
-    ) -> float:
+    def _log_linear_discount_factor(self, t0: float, t1: float, r0: float, r1: float, weight: float) -> float:
         """Discount factor from linearly interpolating ``ln(DF)`` between pillars.
 
         The pillar discount factors are always positive (a discount factor is

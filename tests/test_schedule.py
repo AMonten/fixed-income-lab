@@ -108,9 +108,9 @@ def test_adjust_business_day_with_calendar_rolls_past_a_holiday():
     july_4th_2024 = date(2024, 7, 4)
     us_calendar = UnitedStatesFederalCalendar()
     assert adjust_business_day(july_4th_2024, BusinessDayConvention.FOLLOWING) == july_4th_2024
-    assert adjust_business_day(
-        july_4th_2024, BusinessDayConvention.FOLLOWING, us_calendar
-    ) == date(2024, 7, 5)
+    assert adjust_business_day(july_4th_2024, BusinessDayConvention.FOLLOWING, us_calendar) == date(
+        2024, 7, 5
+    )
 
 
 def test_subtract_business_days_with_calendar_skips_a_holiday():
@@ -124,11 +124,11 @@ def test_subtract_business_days_with_calendar_skips_a_holiday():
 
 def test_generate_schedule_with_calendar_moves_payment_date_off_a_holiday():
     us_calendar = UnitedStatesFederalCalendar()
-    periods_weekend_only = generate_schedule(
-        date(2024, 1, 4), date(2025, 1, 4), Frequency.SEMI_ANNUAL
-    )
+    periods_weekend_only = generate_schedule(date(2024, 1, 4), date(2025, 1, 4), Frequency.SEMI_ANNUAL)
     periods_us_calendar = generate_schedule(
-        date(2024, 1, 4), date(2025, 1, 4), Frequency.SEMI_ANNUAL,
+        date(2024, 1, 4),
+        date(2025, 1, 4),
+        Frequency.SEMI_ANNUAL,
         calendar=us_calendar,
     )
     # July 4, 2024 (an accrual boundary here) is a business day under

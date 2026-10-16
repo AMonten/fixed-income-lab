@@ -83,6 +83,11 @@ def test_solver_raises_when_target_price_unreachable_in_bracket(bond):
     cfs, yc = _cfs_and_yc(bond, settlement)
     with pytest.raises(YieldSolverError):
         solve_yield_to_maturity(
-            cfs, bond.face_value, settlement, target_dirty_price=1e9, yield_convention=yc,
-            day_count=bond.day_count, bracket=(-0.5, 1.0),
+            cfs,
+            bond.face_value,
+            settlement,
+            target_dirty_price=1e9,
+            yield_convention=yc,
+            day_count=bond.day_count,
+            bracket=(-0.5, 1.0),
         )

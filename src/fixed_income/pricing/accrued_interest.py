@@ -67,9 +67,7 @@ def compute_accrued_interest(bond: Bond | ZeroCouponBond, settlement_date: date)
             "no coupon period is active"
         )
 
-    cash_flow = next(
-        cf for cf in bond.cash_flows() if cf.accrual_start <= settlement_date < cf.accrual_end
-    )
+    cash_flow = next(cf for cf in bond.cash_flows() if cf.accrual_start <= settlement_date < cf.accrual_end)
     day_count = bond.day_count
 
     accrued_days = day_count.day_count(cash_flow.accrual_start, settlement_date)

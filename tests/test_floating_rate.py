@@ -63,7 +63,9 @@ def test_final_period_repays_principal(frn):
 
 def test_rate_floor_is_applied():
     index = RateIndex(name="TEST", forward_assumption=-0.01, floor=0.0)
-    frn = FloatingRateNote(100.0, 0.001, date(2023, 1, 15), date(2024, 1, 15), index, Frequency.QUARTERLY, Actual360())
+    frn = FloatingRateNote(
+        100.0, 0.001, date(2023, 1, 15), date(2024, 1, 15), index, Frequency.QUARTERLY, Actual360()
+    )
     for period in frn.schedule():
         rate = frn.coupon_rate_for_period(period)
         assert rate == pytest.approx(0.0 + 0.001)  # floored reference rate (0) + spread
@@ -71,7 +73,13 @@ def test_rate_floor_is_applied():
 
 def test_reset_lag_shifts_reset_date_before_accrual_start(index):
     frn = FloatingRateNote(
-        100.0, 0.0025, date(2023, 1, 15), date(2024, 1, 15), index, Frequency.QUARTERLY, Actual360(),
+        100.0,
+        0.0025,
+        date(2023, 1, 15),
+        date(2024, 1, 15),
+        index,
+        Frequency.QUARTERLY,
+        Actual360(),
         reset_lag_days=2,
     )
     schedule = frn.schedule()
@@ -86,7 +94,13 @@ def test_reset_lag_counts_business_days_not_calendar_days(index):
     (timedelta), which lands on the wrong date whenever the lookback window
     crosses a weekend."""
     frn = FloatingRateNote(
-        100.0, 0.0025, date(2023, 1, 15), date(2024, 1, 15), index, Frequency.QUARTERLY, Actual360(),
+        100.0,
+        0.0025,
+        date(2023, 1, 15),
+        date(2024, 1, 15),
+        index,
+        Frequency.QUARTERLY,
+        Actual360(),
         reset_lag_days=2,
     )
     schedule = frn.schedule()
@@ -100,7 +114,13 @@ def test_reset_lag_with_a_real_calendar_skips_a_holiday(index):
     Accrual start July 8, 2024 (a Monday) lookback 2 business days lands on
     Thursday July 4 under the weekend-only default -- a US federal holiday."""
     frn = FloatingRateNote(
-        100.0, 0.0025, date(2024, 7, 8), date(2025, 7, 8), index, Frequency.QUARTERLY, Actual360(),
+        100.0,
+        0.0025,
+        date(2024, 7, 8),
+        date(2025, 7, 8),
+        index,
+        Frequency.QUARTERLY,
+        Actual360(),
         reset_lag_days=2,
     )
     schedule = frn.schedule()
@@ -108,8 +128,15 @@ def test_reset_lag_with_a_real_calendar_skips_a_holiday(index):
     assert frn.reset_date_for(schedule[0]) == date(2024, 7, 4)
 
     frn_with_calendar = FloatingRateNote(
-        100.0, 0.0025, date(2024, 7, 8), date(2025, 7, 8), index, Frequency.QUARTERLY, Actual360(),
-        reset_lag_days=2, calendar=UnitedStatesFederalCalendar(),
+        100.0,
+        0.0025,
+        date(2024, 7, 8),
+        date(2025, 7, 8),
+        index,
+        Frequency.QUARTERLY,
+        Actual360(),
+        reset_lag_days=2,
+        calendar=UnitedStatesFederalCalendar(),
     )
     assert frn_with_calendar.reset_date_for(schedule[0]) == date(2024, 7, 3)
 
@@ -117,8 +144,14 @@ def test_reset_lag_with_a_real_calendar_skips_a_holiday(index):
 def test_negative_reset_lag_rejected(index):
     with pytest.raises(ValueError):
         FloatingRateNote(
-            100.0, 0.0025, date(2023, 1, 15), date(2024, 1, 15), index,
-            Frequency.QUARTERLY, Actual360(), reset_lag_days=-1,
+            100.0,
+            0.0025,
+            date(2023, 1, 15),
+            date(2024, 1, 15),
+            index,
+            Frequency.QUARTERLY,
+            Actual360(),
+            reset_lag_days=-1,
         )
 
 

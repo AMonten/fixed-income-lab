@@ -45,7 +45,9 @@ def test_scenario_default_shocks_are_the_standard_set():
 
 def test_convexity_approximation_closer_than_duration_at_large_shock(setup):
     bond, settlement, cfs, yc = setup
-    results = run_rate_shock_scenarios(cfs, bond.face_value, settlement, 0.05, yc, bond.day_count, shocks_bp=(100.0,))
+    results = run_rate_shock_scenarios(
+        cfs, bond.face_value, settlement, 0.05, yc, bond.day_count, shocks_bp=(100.0,)
+    )
     r = results[0]
     duration_error = abs(r.full_reprice - r.duration_approx_price)
     convexity_error = abs(r.full_reprice - r.convexity_approx_price)
@@ -54,5 +56,7 @@ def test_convexity_approximation_closer_than_duration_at_large_shock(setup):
 
 def test_custom_shock_set_is_respected(setup):
     bond, settlement, cfs, yc = setup
-    results = run_rate_shock_scenarios(cfs, bond.face_value, settlement, 0.05, yc, bond.day_count, shocks_bp=(-25.0, 25.0))
+    results = run_rate_shock_scenarios(
+        cfs, bond.face_value, settlement, 0.05, yc, bond.day_count, shocks_bp=(-25.0, 25.0)
+    )
     assert [r.shock_bp for r in results] == [-25.0, 25.0]

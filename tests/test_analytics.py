@@ -48,8 +48,13 @@ def test_analyze_cash_flows_requires_exactly_one_input(bond):
         analyze_cash_flows(cfs, bond.face_value, settlement, yc, bond.day_count)
     with pytest.raises(ValueError):
         analyze_cash_flows(
-            cfs, bond.face_value, settlement, yc, bond.day_count,
-            yield_to_maturity=0.05, clean_price=100.0,
+            cfs,
+            bond.face_value,
+            settlement,
+            yc,
+            bond.day_count,
+            yield_to_maturity=0.05,
+            clean_price=100.0,
         )
 
 

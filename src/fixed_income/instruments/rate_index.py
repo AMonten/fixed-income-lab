@@ -73,8 +73,7 @@ class RateIndex:
         if self.forward_assumption is not None:
             return self.forward_assumption
         raise ValueError(
-            f"No observed fixing for {self.name} on {fixing_date} and no "
-            "forward_assumption was provided."
+            f"No observed fixing for {self.name} on {fixing_date} and no forward_assumption was provided."
         )
 
     def apply_floor(self, rate: float) -> float:

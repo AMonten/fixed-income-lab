@@ -72,8 +72,7 @@ def analyze_cash_flows(
     provided = [v is not None for v in (yield_to_maturity, dirty_price, clean_price)]
     if sum(provided) != 1:
         raise ValueError(
-            "Provide exactly one of yield_to_maturity, dirty_price, or clean_price "
-            f"(got {sum(provided)})"
+            f"Provide exactly one of yield_to_maturity, dirty_price, or clean_price (got {sum(provided)})"
         )
 
     if clean_price is not None:

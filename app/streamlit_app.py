@@ -71,13 +71,16 @@ with st.sidebar:
 
     elif instrument_type == "Floating-Rate Note":
         spread_bp = st.number_input("Spread over reference rate (bp)", value=25.0, step=5.0)
-        forward_assumption = st.number_input(
-            "Forward-rate assumption (%)",
-            value=4.50,
-            step=0.05,
-            help="Flat assumed reference rate for every reset date without an observed fixing "
-            "(V1 has no market-curve bootstrapping).",
-        ) / 100.0
+        forward_assumption = (
+            st.number_input(
+                "Forward-rate assumption (%)",
+                value=4.50,
+                step=0.05,
+                help="Flat assumed reference rate for every reset date without an observed fixing "
+                "(V1 has no market-curve bootstrapping).",
+            )
+            / 100.0
+        )
         apply_floor = st.checkbox("Apply a rate floor", value=True)
         floor = st.number_input("Floor (%)", value=0.0, step=0.25) / 100.0 if apply_floor else None
         rate_index = RateIndex(name="Reference Index", forward_assumption=forward_assumption, floor=floor)
@@ -142,7 +145,7 @@ with tab_cf:
             for cf in all_cash_flows
         ]
     )
-    st.dataframe(df, width='stretch', hide_index=True)
+    st.dataframe(df, width="stretch", hide_index=True)
     st.caption(f"{len(all_cash_flows)} period(s) from {security.issue_date} to {security.maturity_date}.")
 
 # ---------------------------------------------------------------------------
@@ -165,14 +168,21 @@ with tab_price:
     try:
         if isinstance(security, (Bond, ZeroCouponBond)):
             result = analyze_bond(
-                security, settlement_date, yield_convention=yield_convention,
-                yield_to_maturity=ytm_input, clean_price=clean_price_input,
+                security,
+                settlement_date,
+                yield_convention=yield_convention,
+                yield_to_maturity=ytm_input,
+                clean_price=clean_price_input,
             )
         else:
             result = analyze_cash_flows(
-                cash_flows_after_settlement, security.face_value, settlement_date,
-                yield_convention, security.day_count,
-                yield_to_maturity=ytm_input, clean_price=clean_price_input,
+                cash_flows_after_settlement,
+                security.face_value,
+                settlement_date,
+                yield_convention,
+                security.day_count,
+                yield_to_maturity=ytm_input,
+                clean_price=clean_price_input,
                 accrued_interest=accrued_interest,
             )
     except ValueError as exc:
@@ -219,8 +229,13 @@ with tab_risk:
 with tab_scenarios:
     st.subheader("Parallel yield-shock scenarios")
     scenarios = run_rate_shock_scenarios(
-        cash_flows_after_settlement, security.face_value, settlement_date,
-        result.yield_to_maturity, yield_convention, security.day_count, DEFAULT_SHOCKS_BP,
+        cash_flows_after_settlement,
+        security.face_value,
+        settlement_date,
+        result.yield_to_maturity,
+        yield_convention,
+        security.day_count,
+        DEFAULT_SHOCKS_BP,
     )
     scenario_df = pd.DataFrame(
         [
@@ -235,7 +250,7 @@ with tab_scenarios:
             for s in scenarios
         ]
     )
-    st.dataframe(scenario_df, width='stretch', hide_index=True)
+    st.dataframe(scenario_df, width="stretch", hide_index=True)
 
     shock_bps = [s.shock_bp for s in scenarios]
     series = [
@@ -249,7 +264,7 @@ with tab_scenarios:
     fig.update_layout(
         xaxis_title="Yield shock (bp)", yaxis_title="Price (per 100 par)", legend_title="Method"
     )
-    st.plotly_chart(fig, width='stretch')
+    st.plotly_chart(fig, width="stretch")
 
 # ---------------------------------------------------------------------------
 # Amortization
@@ -273,13 +288,13 @@ with tab_amort:
                 for e in entries
             ]
         )
-        st.dataframe(amort_df, width='stretch', hide_index=True)
+        st.dataframe(amort_df, width="stretch", hide_index=True)
 
         fig = go.Figure()
         dates = [security.issue_date] + [e.payment_date for e in entries]
         balances = [security.original_face] + [e.end_principal for e in entries]
         fig.add_trace(go.Scatter(x=dates, y=balances, mode="lines+markers", name="Outstanding principal"))
         fig.update_layout(xaxis_title="Date", yaxis_title="Outstanding principal")
-        st.plotly_chart(fig, width='stretch')
+        st.plotly_chart(fig, width="stretch")
     else:
         st.info(f"{instrument_type} does not amortize — principal is repaid in full at maturity.")

@@ -147,9 +147,7 @@ def test_yield_curve_log_linear_handles_negative_bracketing_rate():
     """#22 'done when': a curve with a negative zero rate at a bracketing
     pillar interpolates under LOG_LINEAR without raising ValueError (the old
     log-rate implementation could not represent negative rates at all)."""
-    curve = YieldCurve(
-        tenors=(1.0, 5.0), zero_rates=(-0.005, 0.02), interpolation=Interpolation.LOG_LINEAR
-    )
+    curve = YieldCurve(tenors=(1.0, 5.0), zero_rates=(-0.005, 0.02), interpolation=Interpolation.LOG_LINEAR)
     # Must not raise.
     rate = curve.zero_rate(3.0)
     df = curve.discount_factor(3.0)

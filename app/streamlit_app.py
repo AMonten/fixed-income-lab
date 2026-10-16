@@ -6,19 +6,16 @@ inspect its cash flows, price it, and look at its risk. The engine
 tangible, not to be a trading tool.
 
 Run with: streamlit run app/streamlit_app.py
+(after ``pip install -e ".[app]"`` so ``fixed_income`` is importable).
 """
 
 from __future__ import annotations
 
-import sys
 from datetime import date, timedelta
-from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from fixed_income.analytics import analyze_bond, analyze_cash_flows
 from fixed_income.conventions import Frequency, get_day_count_convention

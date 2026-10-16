@@ -95,7 +95,7 @@ pip install -e ".[dev,app]"
 
 Requires Python 3.10+. Core dependencies are `numpy` and `scipy`; the `app` extra
 adds `streamlit`, `pandas`, and `plotly` for the demo UI; `dev` adds `pytest`,
-`ruff`, and `mypy`.
+`ruff`, `mypy`, and `pre-commit`.
 
 ## Quickstart
 
@@ -329,6 +329,8 @@ reusable Python analytics engine in `src/fixed_income/` is the actual product.
 pytest                                          # run the suite
 pytest --cov=fixed_income --cov-report=term-missing   # with coverage
 ruff check src/ tests/ app/                     # lint
+ruff format src/ tests/ app/                    # format
+pre-commit install                              # run ruff + hygiene hooks on every commit
 ```
 
 195 tests cover day-count conventions, schedule generation (including stub

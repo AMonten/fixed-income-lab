@@ -35,7 +35,12 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from ..cashflows.generator import CashFlow, cash_flows_after
-from ..cashflows.schedule import BusinessDayConvention, SchedulePeriod, add_months, generate_schedule
+from ..cashflows.schedule import (
+    BusinessDayConvention,
+    SchedulePeriod,
+    generate_schedule,
+    regular_period_start,
+)
 from ..conventions.calendar import WEEKEND_ONLY, Calendar
 from ..conventions.day_count import Actual365Fixed, DayCountConvention, ScheduleContext
 from ..conventions.frequency import Frequency
@@ -393,7 +398,9 @@ class AmortizingBond:
             # accrual_end is always a regular grid date (schedules step backward
             # from maturity), so it anchors the reference period even when
             # accrual_start is an irregular stub start -- see ScheduleContext.
-            reference_start = add_months(period.accrual_end, -self.frequency.months_between_payments)
+            reference_start = regular_period_start(
+                period.accrual_end, self.maturity_date, self.frequency.months_between_payments
+            )
             context = ScheduleContext(reference_start, period.accrual_end, self.frequency)
             year_fraction = self.day_count.year_fraction(period.accrual_start, period.accrual_end, context)
             interest = begin * self.coupon_rate * year_fraction

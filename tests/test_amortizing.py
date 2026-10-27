@@ -2,7 +2,7 @@ from datetime import date
 
 import pytest
 
-from fixed_income.conventions.day_count import Actual365Fixed, ScheduleContext
+from fixed_income.conventions.day_count import Actual365Fixed, ActualActualICMA, ScheduleContext
 from fixed_income.conventions.frequency import Frequency
 from fixed_income.instruments.amortizing import (
     AmortizingBond,
@@ -268,3 +268,13 @@ def test_amortizing_bond_cash_flows_track_amortization_schedule():
         assert cf.coupon == pytest.approx(entry.interest)
         assert cf.principal == pytest.approx(entry.principal_repayment)
         assert cf.end_principal == pytest.approx(entry.end_principal)
+
+
+def test_stub_interest_uses_the_maturity_anchored_reference_period():
+    """#59: a 31 Mar maturity puts the stub (2 Apr -> 30 Sep 1990) inside the
+    31 Mar -> 30 Sep reference period (183 days), not 30 Mar -> 30 Sep (184)."""
+    bond = AmortizingBond.with_level_principal(
+        100.0, 0.085, date(1990, 4, 2), date(1992, 3, 31), day_count=ActualActualICMA()
+    )
+    stub = bond.amortization_schedule()[0]
+    assert stub.interest == pytest.approx(100.0 * 0.085 / 2 * 181 / 183, rel=1e-12)

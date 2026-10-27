@@ -37,7 +37,7 @@ from ..conventions.calendar import Calendar as _Calendar
 from ..conventions.day_count import DayCountConvention, ScheduleContext
 from ..conventions.frequency import Frequency
 from .schedule import BusinessDayConvention as _BusinessDayConvention
-from .schedule import SchedulePeriod, add_months, adjust_business_day
+from .schedule import SchedulePeriod, adjust_business_day, regular_period_start
 
 
 @dataclass(frozen=True)
@@ -70,11 +70,14 @@ class CashFlow:
         return self.coupon + self.principal
 
 
-def _is_regular_period(period: SchedulePeriod, frequency: Frequency) -> bool:
+def _is_regular_period(period: SchedulePeriod, frequency: Frequency, maturity_date: date) -> bool:
     """Whether ``period`` spans exactly one nominal step of ``frequency``
     (as opposed to a stub, produced when the schedule's life isn't an exact
-    multiple of the frequency's step)."""
-    return add_months(period.accrual_start, frequency.months_between_payments) == period.accrual_end
+    multiple of the frequency's step). Judged against the maturity-anchored
+    grid, not ``add_months(accrual_start, step)`` -- on a 31 Mar grid,
+    30 Sep -> 31 Mar is regular (#59)."""
+    step = frequency.months_between_payments
+    return period.accrual_start == regular_period_start(period.accrual_end, maturity_date, step)
 
 
 def _coupon_amount(
@@ -83,8 +86,9 @@ def _coupon_amount(
     period: SchedulePeriod,
     day_count: DayCountConvention,
     frequency: Frequency | None,
+    maturity_date: date,
 ) -> float:
-    if frequency is not None and _is_regular_period(period, frequency):
+    if frequency is not None and _is_regular_period(period, frequency, maturity_date):
         return face_value * coupon_rate / frequency.periods_per_year
     context = None
     if frequency is not None:
@@ -93,7 +97,9 @@ def _coupon_amount(
         # ScheduleContext's docstring. accrual_end is always a regular grid
         # date (schedules step backward from maturity), so it anchors the
         # reference period even when accrual_start is an irregular stub start.
-        reference_start = add_months(period.accrual_end, -frequency.months_between_payments)
+        reference_start = regular_period_start(
+            period.accrual_end, maturity_date, frequency.months_between_payments
+        )
         context = ScheduleContext(reference_start, period.accrual_end, frequency)
     year_fraction = day_count.year_fraction(period.accrual_start, period.accrual_end, context)
     return face_value * coupon_rate * year_fraction
@@ -126,8 +132,9 @@ def generate_variable_rate_cashflows(
 
     cash_flows = []
     last_index = len(schedule) - 1
+    maturity_date = schedule[-1].accrual_end
     for period, coupon_rate in zip(schedule, coupon_rates, strict=True):
-        coupon = _coupon_amount(face_value, coupon_rate, period, day_count, frequency)
+        coupon = _coupon_amount(face_value, coupon_rate, period, day_count, frequency, maturity_date)
         is_final = period.period_index == last_index
         principal = face_value if is_final else 0.0
         cash_flows.append(

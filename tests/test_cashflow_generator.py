@@ -95,3 +95,18 @@ def test_cash_flows_after_filters_strictly_after_settlement(schedule):
     remaining = cash_flows_after(cfs, cfs[2].payment_date)
     assert all(cf.payment_date > cfs[2].payment_date for cf in remaining)
     assert len(remaining) == len(cfs) - 3
+
+
+def test_regular_periods_on_a_month_end_grid_pay_the_flat_coupon():
+    """#59: on a 31 Mar / 30 Sep grid, Sep 30 -> Mar 31 is a *regular* period even
+    though add_months(Sep 30, 6) is Mar 30 -- regularity is judged against the
+    maturity-anchored grid, so every coupon is the flat 2.5, not 5% x 182/365."""
+    schedule = generate_schedule(date(2024, 3, 31), date(2026, 3, 31), Frequency.SEMI_ANNUAL)
+    cfs = generate_bullet_cashflows(100.0, 0.05, schedule, Actual365Fixed(), frequency=Frequency.SEMI_ANNUAL)
+    assert [cf.accrual_end for cf in cfs] == [
+        date(2024, 9, 30),
+        date(2025, 3, 31),
+        date(2025, 9, 30),
+        date(2026, 3, 31),
+    ]
+    assert all(cf.coupon == pytest.approx(2.5, abs=1e-12) for cf in cfs)

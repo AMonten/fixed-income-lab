@@ -119,14 +119,39 @@ def generate_schedule_dates(issue_date: date, maturity_date: date, frequency: Fr
 
     step = frequency.months_between_payments
     dates = [maturity_date]
-    current = maturity_date
+    k = 1
     while True:
-        current = add_months(current, -step)
+        # Always offset from maturity, never from the previous date: chaining
+        # add_months(current, -step) lets one month-end clamp (31 -> 30) leak
+        # into every earlier date (#59).
+        current = add_months(maturity_date, -k * step)
         if current <= issue_date:
             break
         dates.append(current)
+        k += 1
     dates.append(issue_date)
     return sorted(set(dates))
+
+
+def regular_period_start(period_end: date, maturity_date: date, months_step: int) -> date:
+    """The regular grid date one coupon step before ``period_end``.
+
+    The regular grid is anchored to maturity (``maturity - k * step``, see
+    :func:`generate_schedule_dates`), so the date before a grid date must be
+    derived from maturity too: ``add_months(period_end, -step)`` is wrong
+    whenever ``period_end`` is itself a clamped month-end -- e.g. on a 31 Mar
+    maturity grid, the date before 30 Sep is 31 Mar, not 30 Mar.
+
+    Used both to decide whether a period is regular (its start *is* this date)
+    and as the reference period a stub is a fragment of (ACT/ACT ICMA).
+    """
+    months_back = (maturity_date.year - period_end.year) * 12 + (maturity_date.month - period_end.month)
+    if months_back < 0 or months_back % months_step:
+        raise ValueError(
+            f"{period_end} is not on the regular {months_step}-month grid "
+            f"anchored at maturity {maturity_date}"
+        )
+    return add_months(maturity_date, -(months_back + months_step))
 
 
 def generate_schedule(

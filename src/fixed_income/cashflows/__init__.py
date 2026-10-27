@@ -14,6 +14,7 @@ from .schedule import (
     generate_schedule,
     generate_schedule_dates,
     is_business_day,
+    regular_period_start,
 )
 
 __all__ = [
@@ -28,6 +29,7 @@ __all__ = [
     "adjust_business_day",
     "generate_schedule",
     "generate_schedule_dates",
+    "regular_period_start",
     "is_business_day",
     "WEEKEND_ONLY",
     "Calendar",

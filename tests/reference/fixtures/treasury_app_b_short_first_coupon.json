@@ -33,18 +33,17 @@
     "ytm_from_clean": 0.0859
   },
   "known_deviations": {
-    "_eom": {
-      "reason": "Schedule generation chains add_months(-6) from maturity, so a 31 Mar maturity drifts to 30 Mar 1991 / 30 Sep 1990 reference dates: coupon dates and the stub's reference period (184 vs 183 days) are wrong.",
-      "issue": "59",
+    "_pricing": {
+      "reason": "Treasury formula discounts the fractional first period at simple interest [1 + (r/s)(i/2)]; the library's street yield compounds it [(1 + i/2)^(r/s)]. Verified: substituting the simple-interest factor into the library's own cash flows reproduces the printed price to the 6th decimal.",
+      "issue": "61",
       "fields": [
-        "first_coupon",
         "clean_price",
         "ytm_from_clean"
       ]
     },
-    "_pricing": {
-      "reason": "Treasury formula discounts the fractional first period at simple interest [1 + (r/s)(i/2)]; the library's street yield compounds it [(1 + i/2)^(r/s)]. Verified: substituting the simple-interest factor into the library's own cash flows reproduces the printed price to the 6th decimal.",
-      "issue": "61",
+    "_stub_fraction": {
+      "reason": "Settled on the issue date inside the short first coupon: the library's street fraction is 181/181 (stub length) instead of the Treasury's r/s = 181/183 (#60). Verified after #59: reference fraction + simple-interest factor (#61) on the library's own cash flows gives 99.838183, the printed price.",
+      "issue": "60",
       "fields": [
         "clean_price",
         "ytm_from_clean"

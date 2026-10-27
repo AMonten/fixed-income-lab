@@ -40,14 +40,6 @@
         "clean_price",
         "ytm_from_clean"
       ]
-    },
-    "_stub_fraction": {
-      "reason": "Street fraction of a stub period divides by the stub's own length, not the regular reference period s (#60; see quantlib_eur_icma_semiannual_settled_inside_short_first_coupon).",
-      "issue": "60",
-      "fields": [
-        "clean_price",
-        "ytm_from_clean"
-      ]
     }
   }
 }

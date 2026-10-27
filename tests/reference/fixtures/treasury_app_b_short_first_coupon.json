@@ -40,14 +40,6 @@
         "clean_price",
         "ytm_from_clean"
       ]
-    },
-    "_stub_fraction": {
-      "reason": "Settled on the issue date inside the short first coupon: the library's street fraction is 181/181 (stub length) instead of the Treasury's r/s = 181/183 (#60). Verified after #59: reference fraction + simple-interest factor (#61) on the library's own cash flows gives 99.838183, the printed price.",
-      "issue": "60",
-      "fields": [
-        "clean_price",
-        "ytm_from_clean"
-      ]
     }
   }
 }

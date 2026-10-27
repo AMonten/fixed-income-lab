@@ -11,7 +11,7 @@ from fixed_income.pricing.present_value import (
     present_value_from_yield,
     price_per_100,
 )
-from fixed_income.pricing.yield_convention import CompoundingConvention, YieldConvention
+from fixed_income.pricing.yield_convention import CompoundingConvention, YieldConvention, yield_time_fractions
 
 
 def test_periodic_discount_factor_matches_formula():
@@ -67,6 +67,36 @@ def test_present_value_from_street_yield_matches_hand_derived_quasi_coupon_prici
 
     pv = present_value_from_yield(cfs, settlement, y, yc, bond.day_count)
     assert pv == pytest.approx(expected, rel=1e-9)
+
+
+def test_street_yield_inside_a_stub_counts_the_regular_reference_period():
+    """Regression for #60, derivation.engine=manual (SIFMA DSC/E; the ``r/s`` of
+    31 CFR 356 App. B), tolerance=1e-12. Issued 2020-03-01 into a 15 Jan/15 Jul
+    grid, the first period is a short stub (1 Mar -> 15 Jul, 136 days). Settled
+    on 1 May, ``w`` is the 75 days left over the *regular* 15 Jan -> 15 Jul
+    quasi-coupon period (182 days), not over the stub's own 136.
+    """
+    bond = Bond(100.0, 0.06, date(2020, 3, 1), date(2022, 1, 15), day_count=Actual365Fixed())
+    settlement = date(2020, 5, 1)
+    cfs = bond.cash_flows_after(settlement)
+    yc = YieldConvention.street(bond.frequency)
+    y = 0.08
+
+    w = 75 / 182
+    expected = sum(cf.total / (1 + y / 2) ** (w + k) for k, cf in enumerate(cfs))
+
+    assert yield_time_fractions(cfs, settlement, bond.day_count, yc)[0] == pytest.approx(w / 2, rel=1e-12)
+    pv = present_value_from_yield(cfs, settlement, y, yc, bond.day_count)
+    assert pv == pytest.approx(expected, rel=1e-12)
+
+
+def test_street_yield_in_a_regular_period_is_unchanged_by_the_stub_rule():
+    """Once past the stub, the current period *is* its own reference period."""
+    bond = Bond(100.0, 0.06, date(2020, 3, 1), date(2022, 1, 15), day_count=Actual365Fixed())
+    settlement = date(2020, 10, 15)  # inside the regular 15 Jul 2020 -> 15 Jan 2021 period
+    cfs = bond.cash_flows_after(settlement)
+    yc = YieldConvention.street(bond.frequency)
+    assert yield_time_fractions(cfs, settlement, bond.day_count, yc)[0] == pytest.approx(92 / 184 / 2)
 
 
 def test_present_value_with_zero_discount_factor_equals_sum_of_flows():

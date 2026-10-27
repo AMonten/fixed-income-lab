@@ -29,13 +29,17 @@ accrual boundaries:
 ``t_k = (w + k) / m``
 
 where ``k = 0, 1, 2, ...`` indexes the remaining cash flows in order, and
-``w`` is the fraction of the *current* coupon period (the one containing
-settlement) still outstanding: days from settlement to that period's
-unadjusted ``accrual_end``, over the period's own length, both measured with
-the bond's day-count convention. Every subsequent cash flow simply adds one
-full period (``k``), regardless of that period's actual calendar length —
-that is the entire point of quasi-coupon counting: a coupon landing on a
-weekend, or a short/long stub, never distorts the yield.
+``w`` is the fraction of the *current* quasi-coupon period still
+outstanding: days from settlement to the current period's unadjusted
+``accrual_end``, over the days in the *regular* coupon period ending on that
+date, both measured with the bond's day-count convention. For a regular
+period that is simply its own length; for a short front stub it is the full
+regular period the stub is a fragment of (SIFMA's ``DSC/E``, the ``r/s`` of
+31 CFR 356 App. B, QuantLib's ISMA reference period) — never the stub's own
+length, which would overstate how much of a period is left (#60). Every
+subsequent cash flow simply adds one full period (``k``), regardless of that
+period's actual calendar length — that is the entire point of quasi-coupon
+counting: a coupon landing on a weekend, or a stub, never distorts the yield.
 
 ``STREET`` is the default and should stay the default: it is what "yield to
 maturity" means on a dealer screen. ``TRUE`` discounts to the actual
@@ -57,6 +61,7 @@ from datetime import date
 from enum import Enum
 
 from ..cashflows.generator import CashFlow, cash_flows_after
+from ..cashflows.schedule import regular_period_start
 from ..conventions.day_count import DayCountConvention
 from ..conventions.frequency import Frequency
 
@@ -154,11 +159,20 @@ def yield_time_fractions(
         # is nothing to count quasi-coupon periods against.
         return [day_count.year_fraction(settlement_date, first.payment_date)]
 
-    period_days = day_count.day_count(first.accrual_start, first.accrual_end)
+    period_start = first.accrual_start
+    if len(remaining) > 1:
+        # Only the first period of a V1 schedule can be irregular (front stubs
+        # only), so the next one spans exactly one regular step of the grid.
+        nxt = remaining[1]
+        step = (nxt.accrual_end.year - nxt.accrual_start.year) * 12 + (
+            nxt.accrual_end.month - nxt.accrual_start.month
+        )
+        period_start = regular_period_start(first.accrual_end, remaining[-1].accrual_end, step)
+    period_days = day_count.day_count(period_start, first.accrual_end)
     if period_days <= 0:
         raise ValueError(
             f"Cannot compute street time fractions: non-positive period length "
-            f"({first.accrual_start} to {first.accrual_end})"
+            f"({period_start} to {first.accrual_end})"
         )
     remaining_days = day_count.day_count(settlement_date, first.accrual_end)
     w = remaining_days / period_days

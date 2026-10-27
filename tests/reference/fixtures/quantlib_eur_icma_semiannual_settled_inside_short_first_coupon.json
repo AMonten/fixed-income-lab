@@ -86,17 +86,5 @@
     ],
     "ytm_from_clean": 0.042
   },
-  "known_deviations": {
-    "_prices": {
-      "fields": [
-        "clean_price",
-        "dirty_price",
-        "modified_duration",
-        "convexity",
-        "ytm_from_clean"
-      ],
-      "reason": "Street fraction of a stub first period: the library divides days-to-next-coupon by the stub's own length (yield_convention.yield_time_fractions); QuantLib -- and the US Treasury's r/s in 31 CFR 356 App. B -- divide by the regular reference (quasi-coupon) period. Accrued and cash flows match; only the discount exponent differs.",
-      "issue": "60"
-    }
-  }
+  "known_deviations": {}
 }

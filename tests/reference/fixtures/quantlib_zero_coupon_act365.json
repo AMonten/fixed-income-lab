@@ -1,0 +1,44 @@
+{
+  "id": "quantlib_zero_coupon_act365",
+  "description": "10-year zero-coupon bond, ACT/365F, semi-annual compounding, mid-life settlement.",
+  "reference": {
+    "engine": "QuantLib",
+    "version": "1.44",
+    "convention": "ACT/365F time to maturity, semi-annual compounding",
+    "source": "scripts/generate_reference_fixtures.py"
+  },
+  "tolerance": {
+    "price": 1e-08,
+    "yield": 1e-10,
+    "risk_rel": 1e-08
+  },
+  "instrument": {
+    "type": "ZeroCouponBond",
+    "face_value": 100.0,
+    "issue_date": "2020-01-15",
+    "maturity_date": "2030-01-15",
+    "frequency": "SEMI_ANNUAL",
+    "day_count": "ACT/365",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "2024-04-15",
+  "quote": {
+    "ytm": 0.045
+  },
+  "expected": {
+    "clean_price": 77.40209602549429,
+    "dirty_price": 77.40209602549429,
+    "accrued_interest": 0.0,
+    "modified_duration": 5.629500619620189,
+    "convexity": 34.444089265238176,
+    "cash_flows": [
+      {
+        "payment_date": "2030-01-15",
+        "coupon": 0.0,
+        "principal": 100.0
+      }
+    ],
+    "ytm_from_clean": 0.045
+  },
+  "known_deviations": {}
+}

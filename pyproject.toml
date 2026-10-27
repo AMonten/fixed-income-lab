@@ -45,6 +45,8 @@ dev = [
     "mypy>=1.8",
 ]
 docs = ["pdoc>=14"]
+# Reference engines used only to (re)generate tests/reference/fixtures offline -- never needed by CI.
+reference = ["QuantLib==1.44"]
 
 [project.urls]
 Homepage = "https://github.com/AMonten/fixed-income-lab"

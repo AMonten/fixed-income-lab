@@ -1,0 +1,54 @@
+{
+  "id": "treasury_app_b_short_first_coupon",
+  "description": "8 1/2% 2-year note issued 1990-04-02 due 1992-03-31 (end-of-month maturity), priced at 8.59% on issue: short first coupon r = 181, s = 183, n = 3.",
+  "reference": {
+    "engine": "US Treasury (published worked example)",
+    "version": "31 CFR 356 App. B, current eCFR text as of 2026-10-26",
+    "convention": "Treasury non-indexed note/bond: actual/actual (ICMA-equivalent) semi-annual accrual; price per 100 rounded to six places; fractional first period discounted at simple interest [1 + (r/s)(i/2)]",
+    "source": "31 CFR Part 356, Appendix B, Section II (via law.cornell.edu/cfr/text/31/appendix-B_to_part_356), Section II.B"
+  },
+  "tolerance": {
+    "price": 5e-07,
+    "yield": 1e-08,
+    "coupon": 1e-09
+  },
+  "instrument": {
+    "type": "Bond",
+    "face_value": 100.0,
+    "coupon_rate": 0.085,
+    "issue_date": "1990-04-02",
+    "maturity_date": "1992-03-31",
+    "frequency": "SEMI_ANNUAL",
+    "day_count": "ACT/ACT-ICMA",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "1990-04-02",
+  "quote": {
+    "ytm": 0.0859
+  },
+  "expected": {
+    "clean_price": 99.838183,
+    "accrued_interest": 0.0,
+    "first_coupon": 4.2035519126,
+    "ytm_from_clean": 0.0859
+  },
+  "known_deviations": {
+    "_eom": {
+      "reason": "Schedule generation chains add_months(-6) from maturity, so a 31 Mar maturity drifts to 30 Mar 1991 / 30 Sep 1990 reference dates: coupon dates and the stub's reference period (184 vs 183 days) are wrong.",
+      "issue": "59",
+      "fields": [
+        "first_coupon",
+        "clean_price",
+        "ytm_from_clean"
+      ]
+    },
+    "_pricing": {
+      "reason": "Treasury formula discounts the fractional first period at simple interest [1 + (r/s)(i/2)]; the library's street yield compounds it [(1 + i/2)^(r/s)]. Verified: substituting the simple-interest factor into the library's own cash flows reproduces the printed price to the 6th decimal.",
+      "issue": "61",
+      "fields": [
+        "clean_price",
+        "ytm_from_clean"
+      ]
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "id": "treasury_app_b_reopened_regular_period",
+  "description": "9 1/2% 10-year note accruing from 1985-11-15, issued 1985-11-29 due 1995-11-15, priced at 9.54%: settlement inside a regular period, A = (14/181)(C/2).",
+  "reference": {
+    "engine": "US Treasury (published worked example)",
+    "version": "31 CFR 356 App. B, current eCFR text as of 2026-10-26",
+    "convention": "Treasury non-indexed note/bond: actual/actual (ICMA-equivalent) semi-annual accrual; price per 100 rounded to six places; fractional first period discounted at simple interest [1 + (r/s)(i/2)]",
+    "source": "31 CFR Part 356, Appendix B, Section II (via law.cornell.edu/cfr/text/31/appendix-B_to_part_356), Section II.D"
+  },
+  "tolerance": {
+    "price": 5e-07,
+    "yield": 1e-08,
+    "coupon": 1e-09
+  },
+  "instrument": {
+    "type": "Bond",
+    "face_value": 100.0,
+    "coupon_rate": 0.095,
+    "issue_date": "1985-11-15",
+    "maturity_date": "1995-11-15",
+    "frequency": "SEMI_ANNUAL",
+    "day_count": "ACT/ACT-ICMA",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "1985-11-29",
+  "quote": {
+    "ytm": 0.0954
+  },
+  "expected": {
+    "clean_price": 99.730918,
+    "accrued_interest": 0.367403,
+    "ytm_from_clean": 0.0954
+  },
+  "known_deviations": {
+    "_pricing": {
+      "reason": "Treasury formula discounts the fractional first period at simple interest [1 + (r/s)(i/2)]; the library's street yield compounds it [(1 + i/2)^(r/s)]. Verified: substituting the simple-interest factor into the library's own cash flows reproduces the printed price to the 6th decimal.",
+      "issue": "61",
+      "fields": [
+        "clean_price",
+        "ytm_from_clean"
+      ]
+    }
+  }
+}

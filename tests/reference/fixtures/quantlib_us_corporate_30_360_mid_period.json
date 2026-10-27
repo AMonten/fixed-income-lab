@@ -1,0 +1,140 @@
+{
+  "id": "quantlib_us_corporate_30_360_mid_period",
+  "description": "US corporate-style semi-annual 6% bond, 30/360 bond basis, settled mid-period.",
+  "reference": {
+    "engine": "QuantLib",
+    "version": "1.44",
+    "convention": "30/360 US (bond basis) accrual, street yield, semi-annual compounding",
+    "source": "scripts/generate_reference_fixtures.py"
+  },
+  "tolerance": {
+    "price": 1e-08,
+    "yield": 1e-10,
+    "risk_rel": 1e-08
+  },
+  "instrument": {
+    "type": "Bond",
+    "face_value": 100.0,
+    "coupon_rate": 0.06,
+    "issue_date": "2021-02-15",
+    "maturity_date": "2031-02-15",
+    "frequency": "SEMI_ANNUAL",
+    "day_count": "30/360",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "2024-05-20",
+  "quote": {
+    "ytm": 0.0525
+  },
+  "expected": {
+    "clean_price": 104.19982596343857,
+    "dirty_price": 105.78315929677191,
+    "accrued_interest": 1.5833333333333366,
+    "modified_duration": 5.440316294364001,
+    "convexity": 36.05022498470175,
+    "cash_flows": [
+      {
+        "payment_date": "2021-08-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2022-02-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2022-08-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2023-02-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2023-08-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2024-02-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2024-08-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2025-02-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2025-08-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2026-02-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2026-08-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2027-02-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2027-08-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2028-02-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2028-08-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2029-02-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2029-08-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2030-02-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2030-08-15",
+        "coupon": 3.0000000000000027,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2031-02-15",
+        "coupon": 3.0000000000000027,
+        "principal": 100.0
+      }
+    ],
+    "ytm_from_clean": 0.0525
+  },
+  "known_deviations": {}
+}

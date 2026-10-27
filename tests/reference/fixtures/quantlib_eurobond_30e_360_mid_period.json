@@ -1,0 +1,90 @@
+{
+  "id": "quantlib_eurobond_30e_360_mid_period",
+  "description": "Annual 3.25% Eurobond under 30E/360, settled on a 31st (exercises the 31 -> 30 cap).",
+  "reference": {
+    "engine": "QuantLib",
+    "version": "1.44",
+    "convention": "30E/360 accrual, street yield, annual compounding",
+    "source": "scripts/generate_reference_fixtures.py"
+  },
+  "tolerance": {
+    "price": 1e-08,
+    "yield": 1e-10,
+    "risk_rel": 1e-08
+  },
+  "instrument": {
+    "type": "Bond",
+    "face_value": 100.0,
+    "coupon_rate": 0.0325,
+    "issue_date": "2021-09-30",
+    "maturity_date": "2031-09-30",
+    "frequency": "ANNUAL",
+    "day_count": "30E/360",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "2024-01-31",
+  "quote": {
+    "ytm": 0.029
+  },
+  "expected": {
+    "clean_price": 102.36504963026009,
+    "dirty_price": 103.44838296359342,
+    "accrued_interest": 1.083333333333325,
+    "modified_duration": 6.657510357031179,
+    "convexity": 54.08216386425765,
+    "cash_flows": [
+      {
+        "payment_date": "2022-09-30",
+        "coupon": 3.2499999999999973,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2023-09-30",
+        "coupon": 3.2499999999999973,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2024-09-30",
+        "coupon": 3.2499999999999973,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2025-09-30",
+        "coupon": 3.2499999999999973,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2026-09-30",
+        "coupon": 3.2499999999999973,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2027-09-30",
+        "coupon": 3.2499999999999973,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2028-09-30",
+        "coupon": 3.2499999999999973,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2029-09-30",
+        "coupon": 3.2499999999999973,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2030-09-30",
+        "coupon": 3.2499999999999973,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2031-09-30",
+        "coupon": 3.2499999999999973,
+        "principal": 100.0
+      }
+    ],
+    "ytm_from_clean": 0.029
+  },
+  "known_deviations": {}
+}

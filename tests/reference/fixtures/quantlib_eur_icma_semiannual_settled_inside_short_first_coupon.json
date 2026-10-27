@@ -1,0 +1,102 @@
+{
+  "id": "quantlib_eur_icma_semiannual_settled_inside_short_first_coupon",
+  "description": "Same bond as the short-first-coupon case, but settled *inside* the stub (2020-05-01): exercises the street fraction of an irregular first period.",
+  "reference": {
+    "engine": "QuantLib",
+    "version": "1.44",
+    "convention": "ACT/ACT ICMA accrual, street yield (unadjusted quasi-coupon periods), compounded at coupon frequency",
+    "source": "scripts/generate_reference_fixtures.py"
+  },
+  "tolerance": {
+    "price": 1e-08,
+    "yield": 1e-10,
+    "risk_rel": 1e-08
+  },
+  "instrument": {
+    "type": "Bond",
+    "face_value": 100.0,
+    "coupon_rate": 0.05,
+    "issue_date": "2020-03-01",
+    "maturity_date": "2025-01-15",
+    "frequency": "SEMI_ANNUAL",
+    "day_count": "ACT/ACT-ICMA",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "2020-05-01",
+  "quote": {
+    "ytm": 0.042
+  },
+  "expected": {
+    "clean_price": 103.38318074643449,
+    "dirty_price": 104.22109283434658,
+    "accrued_interest": 0.8379120879120849,
+    "modified_duration": 4.139370808960885,
+    "convexity": 20.38783559999464,
+    "cash_flows": [
+      {
+        "payment_date": "2020-07-15",
+        "coupon": 1.8681318681318615,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2021-01-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2021-07-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2022-01-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2022-07-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2023-01-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2023-07-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2024-01-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2024-07-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2025-01-15",
+        "coupon": 2.499999999999991,
+        "principal": 100.0
+      }
+    ],
+    "ytm_from_clean": 0.042
+  },
+  "known_deviations": {
+    "_prices": {
+      "fields": [
+        "clean_price",
+        "dirty_price",
+        "modified_duration",
+        "convexity",
+        "ytm_from_clean"
+      ],
+      "reason": "Street fraction of a stub first period: the library divides days-to-next-coupon by the stub's own length (yield_convention.yield_time_fractions); QuantLib -- and the US Treasury's r/s in 31 CFR 356 App. B -- divide by the regular reference (quasi-coupon) period. Accrued and cash flows match; only the discount exponent differs.",
+      "issue": "60"
+    }
+  }
+}

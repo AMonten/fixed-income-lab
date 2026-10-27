@@ -1,0 +1,90 @@
+{
+  "id": "quantlib_eur_icma_semiannual_short_first_coupon",
+  "description": "Semi-annual 5% bond under ACT/ACT ICMA issued 2020-03-01 into a 15 Jan/15 Jul grid: short first (stub) coupon prorated over the regular 2020-01-15 -> 2020-07-15 reference period. Settled after the stub, in a regular period.",
+  "reference": {
+    "engine": "QuantLib",
+    "version": "1.44",
+    "convention": "ACT/ACT ICMA accrual, street yield (unadjusted quasi-coupon periods), compounded at coupon frequency",
+    "source": "scripts/generate_reference_fixtures.py"
+  },
+  "tolerance": {
+    "price": 1e-08,
+    "yield": 1e-10,
+    "risk_rel": 1e-08
+  },
+  "instrument": {
+    "type": "Bond",
+    "face_value": 100.0,
+    "coupon_rate": 0.05,
+    "issue_date": "2020-03-01",
+    "maturity_date": "2025-01-15",
+    "frequency": "SEMI_ANNUAL",
+    "day_count": "ACT/ACT-ICMA",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "2021-03-10",
+  "quote": {
+    "ytm": 0.042
+  },
+  "expected": {
+    "clean_price": 102.81185211274855,
+    "dirty_price": 103.55770846633972,
+    "accrued_interest": 0.7458563535911678,
+    "modified_duration": 3.458472889863099,
+    "convexity": 14.332877767113839,
+    "cash_flows": [
+      {
+        "payment_date": "2020-07-15",
+        "coupon": 1.8681318681318615,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2021-01-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2021-07-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2022-01-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2022-07-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2023-01-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2023-07-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2024-01-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2024-07-15",
+        "coupon": 2.499999999999991,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2025-01-15",
+        "coupon": 2.499999999999991,
+        "principal": 100.0
+      }
+    ],
+    "ytm_from_clean": 0.042
+  },
+  "known_deviations": {}
+}

@@ -339,12 +339,27 @@ against it (import from site-packages, `py.typed` shipped, Quickstart numbers ab
 and builds the API reference with pdoc (`pip install -e ".[docs]"` then
 `python scripts/build_docs.py`, output in `site/`).
 
-195 tests cover day-count conventions, schedule generation (including stub
-periods, month-end clamping, business-day rolls), accrued-interest edge cases
-(on the issue date, on a coupon date, before issue, on/after maturity), price/
-yield round-tripping, duration/convexity accuracy (verified against a Taylor
-expansion), floating-rate reset provenance, amortizing/sinkable/factor paydown,
-scenario analysis, and portfolio roll-ups, at 97% line coverage.
+**623 tests / 98% line coverage / 16 independent reference cases / 5 day-count
+conventions validated against an external reference.** Coverage only says code ran;
+the reference cases in [`tests/reference/`](tests/reference/) say it agrees with
+something it didn't compute itself. Each fixture is a JSON file declaring its source
+(`reference.engine`/`version`/`convention`/`source`) and tolerance: published US
+Treasury worked examples (31 CFR 356 App. B), QuantLib 1.44 runs frozen offline by
+[`scripts/generate_reference_fixtures.py`](scripts/generate_reference_fixtures.py)
+(QuantLib is never a CI or runtime dependency — `pip install -e ".[reference]"` only
+to regenerate), and hand derivations written out in the fixture. Every instrument
+type has at least one case. Of 71 field-level checks, 52 match within tolerance and
+19 are **documented deviations** — strict xfails carrying their reason and tracking
+issue, so a fix turns them into a failing XPASS instead of letting them go stale:
+long first coupons (#19), month-end schedule drift (#59), the street fraction of a
+stub first period (#60), and the Treasury's simple-interest fractional period (#61).
+
+[`tests/test_invariants.py`](tests/test_invariants.py) checks the analytical
+invariants (par at a coupon date, price decreasing in yield, convexity ≥ 0,
+principal sums to face, dirty = clean + accrued, factor ∈ [0, 1], DV01 ≈ D_mod·P·1bp)
+across every day count, frequency and yield convention; the rest of the suite covers
+schedule generation, accrued-interest edge cases, price/yield round-tripping, FRN
+reset provenance, amortizing/factor paydown, scenarios and portfolio roll-ups.
 
 ## Assumptions & limitations
 
@@ -384,7 +399,7 @@ milestones, updated after execution rather than before.
 |---|---|---|
 | [v0.1.1 — Correctness](https://github.com/AMonten/fixed-income-lab/milestone/1) | Confirmed math/API bugs, silent-truncation defects, false claims in docs | 12 |
 | [v0.2.0 — Market Conventions](https://github.com/AMonten/fixed-income-lab/milestone/2) | Street-yield vs curve time semantics, ACT/ACT ICMA/ISDA, configurable calendar, `ScheduleSpec` | 8 |
-| [v0.3.0 — Reference Validated](https://github.com/AMonten/fixed-income-lab/milestone/3) | Independent reference fixtures, analytical invariants, property-based tests | 3 |
+| [v0.3.0 — Reference Validated](https://github.com/AMonten/fixed-income-lab/milestone/3) | Independent reference fixtures, analytical invariants, property-based tests | 1 |
 | [v0.4.0 — Curve Architecture](https://github.com/AMonten/fixed-income-lab/milestone/4) | Date→discount-factor curve, bootstrap, `Market` object | 5 |
 
 19 further [open issues](https://github.com/AMonten/fixed-income-lab/issues) —

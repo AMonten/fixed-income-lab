@@ -1,0 +1,31 @@
+{
+  "id": "treasury_app_b_accrued_one_half_year",
+  "description": "6 3/4% note issued 2000-05-15 (5-year), reopened 2000-08-15: 92 of 184 days accrued -> $16.87500 per $1,000 = 1.6875 per 100.",
+  "reference": {
+    "engine": "US Treasury (published worked example)",
+    "version": "31 CFR 356 App. B, current eCFR text as of 2026-10-26",
+    "convention": "Treasury non-indexed note/bond: actual/actual (ICMA-equivalent) semi-annual accrual; price per 100 rounded to six places; fractional first period discounted at simple interest [1 + (r/s)(i/2)]",
+    "source": "31 CFR Part 356, Appendix B, (via law.cornell.edu/cfr/text/31/appendix-B_to_part_356), Section I.D, example (1)(i)"
+  },
+  "tolerance": {
+    "price": 5e-07,
+    "yield": 1e-08,
+    "coupon": 1e-09
+  },
+  "instrument": {
+    "type": "Bond",
+    "face_value": 100.0,
+    "coupon_rate": 0.0675,
+    "issue_date": "2000-05-15",
+    "maturity_date": "2005-05-15",
+    "frequency": "SEMI_ANNUAL",
+    "day_count": "ACT/ACT-ICMA",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "2000-08-15",
+  "quote": {},
+  "expected": {
+    "accrued_interest": 1.6875
+  },
+  "known_deviations": {}
+}

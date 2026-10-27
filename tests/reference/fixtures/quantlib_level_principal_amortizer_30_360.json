@@ -1,0 +1,87 @@
+{
+  "id": "quantlib_level_principal_amortizer_30_360",
+  "description": "5-year semi-annual 6% level-principal amortizer (10 x 10.0), 30/360 bond basis: interest on beginning-of-period outstanding. Clean price / accrued omitted: the library has no accrued-interest API for AmortizingBond yet, so dirty price is what it validates.",
+  "reference": {
+    "engine": "QuantLib",
+    "version": "1.44",
+    "convention": "30/360 US accrual on outstanding principal, street yield, semi-annual compounding; QuantLib's per-100-of-current-notional price rescaled to per 100 of original face (the library's basis)",
+    "source": "scripts/generate_reference_fixtures.py"
+  },
+  "tolerance": {
+    "price": 1e-08,
+    "yield": 1e-10,
+    "risk_rel": 1e-08
+  },
+  "instrument": {
+    "type": "AmortizingBond.with_level_principal",
+    "original_face": 100.0,
+    "coupon_rate": 0.06,
+    "issue_date": "2022-03-01",
+    "maturity_date": "2027-03-01",
+    "frequency": "SEMI_ANNUAL",
+    "day_count": "30/360",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "2023-01-10",
+  "quote": {
+    "ytm": 0.055
+  },
+  "expected": {
+    "dirty_price": 92.80724312964047,
+    "modified_duration": 1.9124482221526056,
+    "convexity": 6.145857317558027,
+    "cash_flows": [
+      {
+        "payment_date": "2022-09-01",
+        "coupon": 3.0000000000000027,
+        "principal": 10.0
+      },
+      {
+        "payment_date": "2023-03-01",
+        "coupon": 2.7000000000000024,
+        "principal": 10.0
+      },
+      {
+        "payment_date": "2023-09-01",
+        "coupon": 2.400000000000002,
+        "principal": 10.0
+      },
+      {
+        "payment_date": "2024-03-01",
+        "coupon": 2.100000000000002,
+        "principal": 10.0
+      },
+      {
+        "payment_date": "2024-09-01",
+        "coupon": 1.8000000000000016,
+        "principal": 10.0
+      },
+      {
+        "payment_date": "2025-03-01",
+        "coupon": 1.5000000000000013,
+        "principal": 10.0
+      },
+      {
+        "payment_date": "2025-09-01",
+        "coupon": 1.200000000000001,
+        "principal": 10.0
+      },
+      {
+        "payment_date": "2026-03-01",
+        "coupon": 0.9000000000000008,
+        "principal": 10.0
+      },
+      {
+        "payment_date": "2026-09-01",
+        "coupon": 0.6000000000000005,
+        "principal": 10.0
+      },
+      {
+        "payment_date": "2027-03-01",
+        "coupon": 0.30000000000000027,
+        "principal": 10.0
+      }
+    ]
+  },
+  "known_deviations": {}
+}

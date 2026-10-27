@@ -1,0 +1,90 @@
+{
+  "id": "quantlib_eur_icma_annual_leap_reference_period",
+  "description": "EUR-style annual 4% bond under ACT/ACT ICMA, settled 2024-03-01 inside a coupon period (2023-06-15 -> 2024-06-15) that contains 29 Feb 2024: accrued and the street fraction must divide by the 366-day reference period.",
+  "reference": {
+    "engine": "QuantLib",
+    "version": "1.44",
+    "convention": "ACT/ACT ICMA accrual, street yield (unadjusted quasi-coupon periods), compounded at coupon frequency",
+    "source": "scripts/generate_reference_fixtures.py"
+  },
+  "tolerance": {
+    "price": 1e-08,
+    "yield": 1e-10,
+    "risk_rel": 1e-08
+  },
+  "instrument": {
+    "type": "Bond",
+    "face_value": 100.0,
+    "coupon_rate": 0.04,
+    "issue_date": "2020-06-15",
+    "maturity_date": "2030-06-15",
+    "frequency": "ANNUAL",
+    "day_count": "ACT/ACT-ICMA",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "2024-03-01",
+  "quote": {
+    "ytm": 0.035
+  },
+  "expected": {
+    "clean_price": 102.76529965087536,
+    "dirty_price": 105.60682970552017,
+    "accrued_interest": 2.841530054644803,
+    "modified_duration": 5.357501508122543,
+    "convexity": 36.42599249024123,
+    "cash_flows": [
+      {
+        "payment_date": "2021-06-15",
+        "coupon": 4.0000000000000036,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2022-06-15",
+        "coupon": 4.0000000000000036,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2023-06-15",
+        "coupon": 4.0000000000000036,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2024-06-15",
+        "coupon": 4.0000000000000036,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2025-06-15",
+        "coupon": 4.0000000000000036,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2026-06-15",
+        "coupon": 4.0000000000000036,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2027-06-15",
+        "coupon": 4.0000000000000036,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2028-06-15",
+        "coupon": 4.0000000000000036,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2029-06-15",
+        "coupon": 4.0000000000000036,
+        "principal": 0.0
+      },
+      {
+        "payment_date": "2030-06-15",
+        "coupon": 4.0000000000000036,
+        "principal": 100.0
+      }
+    ],
+    "ytm_from_clean": 0.035
+  },
+  "known_deviations": {}
+}

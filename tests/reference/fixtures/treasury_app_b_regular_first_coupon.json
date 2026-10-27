@@ -1,0 +1,35 @@
+{
+  "id": "treasury_app_b_regular_first_coupon",
+  "description": "8 3/4% 30-year bond issued 1990-05-15 due 2020-05-15, priced at 8.84% on its issue (coupon-frequency) date: regular first coupon, r = s = 184, n = 59.",
+  "reference": {
+    "engine": "US Treasury (published worked example)",
+    "version": "31 CFR 356 App. B, current eCFR text as of 2026-10-26",
+    "convention": "Treasury non-indexed note/bond: actual/actual (ICMA-equivalent) semi-annual accrual; price per 100 rounded to six places; fractional first period discounted at simple interest [1 + (r/s)(i/2)]",
+    "source": "31 CFR Part 356, Appendix B, Section II (via law.cornell.edu/cfr/text/31/appendix-B_to_part_356), Section II.A"
+  },
+  "tolerance": {
+    "price": 5e-07,
+    "yield": 1e-08,
+    "coupon": 1e-09
+  },
+  "instrument": {
+    "type": "Bond",
+    "face_value": 100.0,
+    "coupon_rate": 0.0875,
+    "issue_date": "1990-05-15",
+    "maturity_date": "2020-05-15",
+    "frequency": "SEMI_ANNUAL",
+    "day_count": "ACT/ACT-ICMA",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "1990-05-15",
+  "quote": {
+    "ytm": 0.0884
+  },
+  "expected": {
+    "clean_price": 99.057893,
+    "accrued_interest": 0.0,
+    "ytm_from_clean": 0.0884
+  },
+  "known_deviations": {}
+}

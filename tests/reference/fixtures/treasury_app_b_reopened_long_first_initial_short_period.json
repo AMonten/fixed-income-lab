@@ -1,0 +1,44 @@
+{
+  "id": "treasury_app_b_reopened_long_first_initial_short_period",
+  "description": "9 3/4% note issued 1988-10-15 due 1994-12-15, first payment 1989-06-15 (long first coupon), reopened 1988-11-15 at 9.79%: settlement inside the long coupon's initial short period.",
+  "reference": {
+    "engine": "US Treasury (published worked example)",
+    "version": "31 CFR 356 App. B, current eCFR text as of 2026-10-26",
+    "convention": "Treasury non-indexed note/bond: actual/actual (ICMA-equivalent) semi-annual accrual; price per 100 rounded to six places; fractional first period discounted at simple interest [1 + (r/s)(i/2)]",
+    "source": "31 CFR Part 356, Appendix B, Section II (via law.cornell.edu/cfr/text/31/appendix-B_to_part_356), Section II.G"
+  },
+  "tolerance": {
+    "price": 5e-07,
+    "yield": 1e-08,
+    "coupon": 1e-09
+  },
+  "instrument": {
+    "type": "Bond",
+    "face_value": 100.0,
+    "coupon_rate": 0.0975,
+    "issue_date": "1988-10-15",
+    "maturity_date": "1994-12-15",
+    "frequency": "SEMI_ANNUAL",
+    "day_count": "ACT/ACT-ICMA",
+    "business_day_convention": "none"
+  },
+  "settlement_date": "1988-11-15",
+  "quote": {
+    "ytm": 0.0979
+  },
+  "expected": {
+    "clean_price": 99.738045,
+    "accrued_interest": 0.82582,
+    "ytm_from_clean": 0.0979
+  },
+  "known_deviations": {
+    "_long": {
+      "reason": "Long first coupon not supported: V1 schedules only produce a short front stub, paid on its own date instead of folded into the first regular coupon.",
+      "issue": "19",
+      "fields": [
+        "clean_price",
+        "ytm_from_clean"
+      ]
+    }
+  }
+}

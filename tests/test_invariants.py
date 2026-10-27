@@ -124,15 +124,13 @@ def _projected_factor_amortizer() -> AmortizingBond:
 
 
 @pytest.mark.parametrize("frequency", FREQUENCIES, ids=lambda f: f.name)
-@pytest.mark.parametrize("day_count", [Thirty360US(), ThirtyE360(), ActualActualICMA()], ids=_id)
+@pytest.mark.parametrize("day_count", DAY_COUNTS, ids=_id)
 def test_par_bond_prices_to_100_at_a_mid_life_coupon_date(day_count, frequency):
     """Yield == coupon on a coupon date => clean == dirty == 100, accrued == 0.
 
-    Restricted to day counts that pay exactly ``coupon / m`` per regular
-    period (30/360 family, ACT/ACT ICMA). Under ACT/360, ACT/365F and ACT/ACT
-    ISDA the coupon amount itself varies with the period's day count, so the
-    street yield of a bond paying ``coupon`` is *not* exactly ``coupon`` --
-    that's a property of the convention, not a pricing bug.
+    Holds under every day count: regular periods pay a flat ``coupon / m``
+    (#13) and street timing counts whole periods, so the day count never
+    enters either side at a coupon date.
     """
     bond = _bond(day_count, frequency)
     coupon_date = date(2025, 1, 15)  # regular coupon date for every frequency above

@@ -174,6 +174,31 @@ business day while the *accrual* dates stay unadjusted for day-count purposes.
 V1's business-day check is weekend-only (no holiday calendar — see
 [Limitations](#assumptions--limitations)).
 
+That front period is **short** by default — the odd days between issue and the
+first grid date are paid on that date. `Bond(..., first_coupon_date=...)` names
+the date the first coupon is actually paid instead, as real bond terms do. It must
+be a quasi-coupon date of the maturity-anchored grid; naming a *later* one folds
+those odd days into that coupon, giving a **long first coupon**:
+
+```python
+# 8 1/2% note issued 1 Mar 1990, due 15 May 1995, first coupon paid 15 Nov 1990
+# (31 CFR 356 App. B, Sec. II.C). 15 May 1990 is never paid.
+bond = Bond(100.0, 0.085, date(1990, 3, 1), date(1995, 5, 15),
+            day_count=ActualActualICMA(), first_coupon_date=date(1990, 11, 15))
+bond.cash_flows()[0].coupon   # 6.0110497... = 4.25 * (1 + 75/181)
+```
+
+A long period is **not** sized by one proration of its own span — that would pay
+less than a single regular coupon. It is split at the quasi-coupon dates it spans
+(`quasi_coupon_boundaries`) and each piece sized on its own terms: a full nominal
+step pays the flat amount, the leading fragment is prorated over the regular
+period it belongs to. This is ICMA Rule 251 and the Treasury's own rule, and the
+same decomposition drives accrued interest (pieces already past pay in full, the
+piece holding settlement prorates within itself) and street yield exponents
+(which count quasi-coupon *periods*, so a long first coupon's payment sits at
+`w + 1`, not `w`). Long or short stubs at the *back* of a schedule, the EOM rule
+and payment/settlement lags are still unsupported (#19).
+
 A single `generate_variable_rate_cashflows` function produces coupon + principal
 cash flows for **any** per-period rate list — a fixed-rate bond is the special case
 where every period gets the same rate, and a floating-rate note is the case where
@@ -339,7 +364,7 @@ against it (import from site-packages, `py.typed` shipped, Quickstart numbers ab
 and builds the API reference with pdoc (`pip install -e ".[docs]"` then
 `python scripts/build_docs.py`, output in `site/`).
 
-**632 tests / 98% line coverage / 16 independent reference cases / 5 day-count
+**644 tests / 98% line coverage / 16 independent reference cases / 5 day-count
 conventions validated against an external reference.** Coverage only says code ran;
 the reference cases in [`tests/reference/`](tests/reference/) say it agrees with
 something it didn't compute itself. Each fixture is a JSON file declaring its source
@@ -348,13 +373,16 @@ Treasury worked examples (31 CFR 356 App. B), QuantLib 1.44 runs frozen offline 
 [`scripts/generate_reference_fixtures.py`](scripts/generate_reference_fixtures.py)
 (QuantLib is never a CI or runtime dependency — `pip install -e ".[reference]"` only
 to regenerate), and hand derivations written out in the fixture. Every instrument
-type has at least one case. Of 71 field-level checks, 58 match within tolerance and
-13 are **documented deviations** — strict xfails carrying their reason and tracking
-issue, so a fix turns them into a failing XPASS instead of letting them go stale:
-long first coupons (#19, not supported in V1) and the Treasury's simple-interest
-fractional period (#61). Two bugs these fixtures surfaced — month-end schedule drift
-(#59) and the street fraction of a stub first period (#60) — are fixed, and their
-reference cases now pass.
+type has at least one case. Of 71 field-level checks, 59 match within tolerance and
+12 are **documented deviations** — strict xfails carrying their reason and tracking
+issue, so a fix turns them into a failing XPASS instead of letting them go stale. All
+12 are now the same one: the Treasury's simple-interest fractional period (#61).
+Three gaps these fixtures surfaced or pinned down — month-end schedule drift (#59),
+the street fraction of a stub first period (#60) and long first coupons (#19) — are
+fixed, and their reference cases now pass; the long-coupon cases kept a price
+deviation, but re-attributed to #61 alone, since their published accrued interest
+(§II.E, §II.G) now matches exactly and their prices land within 5e-7 once the
+simple-interest factor is substituted.
 
 [`tests/test_invariants.py`](tests/test_invariants.py) checks the analytical
 invariants (par at a coupon date, price decreasing in yield, convexity ≥ 0,

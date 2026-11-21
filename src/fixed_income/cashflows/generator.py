@@ -25,6 +25,13 @@ to day-count proration. Without it (the default), every period is
 day-count-prorated — correct for money-market floating-rate notes, whose
 coupon genuinely is ``rate * actual_days/360`` each period, but wrong for a
 fixed-rate bond's regular coupons.
+
+A *long* first period (#19) is neither: it spans more than one nominal step,
+so neither the flat amount nor one proration over its own span is right.
+:func:`quasi_period_coupons` splits it at the quasi-coupon dates inside it
+and sizes each piece on its own terms — the full step flat, the leading
+fragment prorated — which is how ICMA Rule 251 and 31 CFR 356 App. B both
+define a long coupon.
 """
 
 from __future__ import annotations
@@ -37,7 +44,12 @@ from ..conventions.calendar import Calendar as _Calendar
 from ..conventions.day_count import DayCountConvention, ScheduleContext
 from ..conventions.frequency import Frequency
 from .schedule import BusinessDayConvention as _BusinessDayConvention
-from .schedule import SchedulePeriod, adjust_business_day, regular_period_start
+from .schedule import (
+    SchedulePeriod,
+    adjust_business_day,
+    quasi_coupon_boundaries,
+    regular_period_start,
+)
 
 
 @dataclass(frozen=True)
@@ -70,14 +82,97 @@ class CashFlow:
         return self.coupon + self.principal
 
 
-def _is_regular_period(period: SchedulePeriod, frequency: Frequency, maturity_date: date) -> bool:
-    """Whether ``period`` spans exactly one nominal step of ``frequency``
-    (as opposed to a stub, produced when the schedule's life isn't an exact
-    multiple of the frequency's step). Judged against the maturity-anchored
-    grid, not ``add_months(accrual_start, step)`` -- on a 31 Mar grid,
-    30 Sep -> 31 Mar is regular (#59)."""
+def _is_regular_period(
+    accrual_start: date, accrual_end: date, frequency: Frequency, maturity_date: date
+) -> bool:
+    """Whether ``[accrual_start, accrual_end]`` spans exactly one nominal step
+    of ``frequency`` (as opposed to a stub, produced when the schedule's life
+    isn't an exact multiple of the frequency's step). Judged against the
+    maturity-anchored grid, not ``add_months(accrual_start, step)`` -- on a
+    31 Mar grid, 30 Sep -> 31 Mar is regular (#59)."""
     step = frequency.months_between_payments
-    return period.accrual_start == regular_period_start(period.accrual_end, maturity_date, step)
+    return accrual_start == regular_period_start(accrual_end, maturity_date, step)
+
+
+def _simple_coupon_amount(
+    face_value: float,
+    coupon_rate: float,
+    accrual_start: date,
+    accrual_end: date,
+    day_count: DayCountConvention,
+    frequency: Frequency | None,
+    maturity_date: date,
+) -> float:
+    """The coupon for a span covering *at most* one nominal step: a regular
+    period (flat amount) or a stub (day-count-prorated)."""
+    if frequency is not None and _is_regular_period(accrual_start, accrual_end, frequency, maturity_date):
+        return face_value * coupon_rate / frequency.periods_per_year
+    context = None
+    if frequency is not None:
+        # The reference period for a stub is the *regular* nominal period it's
+        # a fragment of, not the stub's own (shorter) bounds -- see
+        # ScheduleContext's docstring. accrual_end is always a regular grid
+        # date (schedules step backward from maturity), so it anchors the
+        # reference period even when accrual_start is an irregular stub start.
+        reference_start = regular_period_start(accrual_end, maturity_date, frequency.months_between_payments)
+        context = ScheduleContext(reference_start, accrual_end, frequency)
+    year_fraction = day_count.year_fraction(accrual_start, accrual_end, context)
+    return face_value * coupon_rate * year_fraction
+
+
+def quasi_period_coupons(
+    face_value: float,
+    coupon_rate: float,
+    period: SchedulePeriod,
+    day_count: DayCountConvention,
+    frequency: Frequency | None,
+    maturity_date: date,
+) -> list[tuple[date, date, float]]:
+    """Break ``period`` into ``(start, end, coupon)`` per quasi-coupon period.
+
+    A regular period or a short stub is one entry whose coupon is the whole
+    period's -- the list is this function's answer to "one period, one
+    amount" and changes nothing for V1 schedules. A **long** period (#19)
+    returns one entry per quasi-coupon period it spans, each sized on its own
+    terms: a full nominal step pays the flat amount, the leading fragment is
+    day-count-prorated over the regular period it belongs to. Summing them is
+    ICMA Rule 251 / 31 CFR 356 App. B: a long coupon is the sum of its
+    quasi-coupon pieces, never one proration over the oversized span (which
+    is what would make a 8.5-month first coupon pay less than 6 months of
+    interest).
+
+    ``frequency`` is ``None`` for instruments with no nominal step to measure
+    against (money-market FRNs, see the module docstring); such a period is
+    always returned whole.
+    """
+    if frequency is None:
+        return [
+            (
+                period.accrual_start,
+                period.accrual_end,
+                _simple_coupon_amount(
+                    face_value,
+                    coupon_rate,
+                    period.accrual_start,
+                    period.accrual_end,
+                    day_count,
+                    frequency,
+                    maturity_date,
+                ),
+            )
+        ]
+    boundaries = quasi_coupon_boundaries(
+        period.accrual_start, period.accrual_end, maturity_date, frequency.months_between_payments
+    )
+    return [
+        (
+            start,
+            end,
+            _simple_coupon_amount(face_value, coupon_rate, start, end, day_count, frequency, maturity_date),
+        )
+        # Pairwise over boundaries: ragged by construction, hence strict=False.
+        for start, end in zip(boundaries, boundaries[1:], strict=False)
+    ]
 
 
 def _coupon_amount(
@@ -88,21 +183,12 @@ def _coupon_amount(
     frequency: Frequency | None,
     maturity_date: date,
 ) -> float:
-    if frequency is not None and _is_regular_period(period, frequency, maturity_date):
-        return face_value * coupon_rate / frequency.periods_per_year
-    context = None
-    if frequency is not None:
-        # The reference period for a stub is the *regular* nominal period it's
-        # a fragment of, not the stub's own (shorter) bounds -- see
-        # ScheduleContext's docstring. accrual_end is always a regular grid
-        # date (schedules step backward from maturity), so it anchors the
-        # reference period even when accrual_start is an irregular stub start.
-        reference_start = regular_period_start(
-            period.accrual_end, maturity_date, frequency.months_between_payments
+    return sum(
+        amount
+        for _, _, amount in quasi_period_coupons(
+            face_value, coupon_rate, period, day_count, frequency, maturity_date
         )
-        context = ScheduleContext(reference_start, period.accrual_end, frequency)
-    year_fraction = day_count.year_fraction(period.accrual_start, period.accrual_end, context)
-    return face_value * coupon_rate * year_fraction
+    )
 
 
 def generate_variable_rate_cashflows(

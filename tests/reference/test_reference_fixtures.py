@@ -59,6 +59,10 @@ def _build(spec: dict[str, Any]) -> Any:
     }
     kind = spec["type"]
     if kind == "Bond":
+        if "first_coupon_date" in spec:
+            # Long/short first coupon: the bond's terms name the date, so the
+            # fixture does too rather than letting the grid guess (#19).
+            common["first_coupon_date"] = date.fromisoformat(spec["first_coupon_date"])
         return Bond(spec["face_value"], spec["coupon_rate"], **common)
     if kind == "ZeroCouponBond":
         return ZeroCouponBond(spec["face_value"], **common)

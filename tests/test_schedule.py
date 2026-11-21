@@ -9,6 +9,7 @@ from fixed_income.cashflows.schedule import (
     generate_schedule,
     generate_schedule_dates,
     is_business_day,
+    quasi_coupon_boundaries,
     regular_period_start,
     subtract_business_days,
 )
@@ -182,3 +183,82 @@ def test_generate_schedule_with_calendar_moves_payment_date_off_a_holiday():
     assert periods_us_calendar[0].payment_date == date(2024, 7, 5)
     for period in periods_us_calendar:
         assert is_business_day(period.payment_date, us_calendar)
+
+
+def test_first_coupon_date_on_the_next_grid_date_changes_nothing():
+    """Naming the grid date that already follows issue is a no-op: the front
+    stub is paid on its own date either way."""
+    plain = generate_schedule_dates(date(1990, 3, 1), date(1995, 5, 15), Frequency.SEMI_ANNUAL)
+    explicit = generate_schedule_dates(
+        date(1990, 3, 1),
+        date(1995, 5, 15),
+        Frequency.SEMI_ANNUAL,
+        first_coupon_date=date(1990, 5, 15),
+    )
+    assert explicit == plain
+
+
+def test_long_first_coupon_drops_the_skipped_quasi_coupon_date():
+    """#19: 8 1/2% note issued 1 Mar 1990, due 15 May 1995, first coupon paid
+    15 Nov 1990 (31 CFR 356 App. B, Sec. II.C). The 15 May 1990 grid date is
+    never paid, so the first period runs 8.5 months -- but the date itself
+    survives as a quasi-coupon date (see quasi_coupon_boundaries)."""
+    dates = generate_schedule_dates(
+        date(1990, 3, 1),
+        date(1995, 5, 15),
+        Frequency.SEMI_ANNUAL,
+        first_coupon_date=date(1990, 11, 15),
+    )
+    assert dates[:3] == [date(1990, 3, 1), date(1990, 11, 15), date(1991, 5, 15)]
+    assert date(1990, 5, 15) not in dates
+    assert dates[-1] == date(1995, 5, 15)
+
+
+def test_quasi_coupon_boundaries_partition_a_long_period():
+    """The 2 Jul 1985 -> 15 Feb 1986 long first period of the Sec. II.E bond
+    splits at the 15 Aug 1985 quasi-coupon date it spans."""
+    assert quasi_coupon_boundaries(date(1985, 7, 2), date(1986, 2, 15), date(2005, 8, 15), 6) == [
+        date(1985, 7, 2),
+        date(1985, 8, 15),
+        date(1986, 2, 15),
+    ]
+
+
+def test_quasi_coupon_boundaries_leave_regular_and_short_periods_whole():
+    # A regular period has no grid date strictly inside it...
+    assert quasi_coupon_boundaries(date(2025, 2, 15), date(2025, 8, 15), date(2030, 8, 15), 6) == [
+        date(2025, 2, 15),
+        date(2025, 8, 15),
+    ]
+    # ...and neither does a short front stub.
+    assert quasi_coupon_boundaries(date(2025, 5, 1), date(2025, 8, 15), date(2030, 8, 15), 6) == [
+        date(2025, 5, 1),
+        date(2025, 8, 15),
+    ]
+
+
+def test_first_coupon_date_off_the_quasi_coupon_grid_is_rejected():
+    with pytest.raises(ValueError, match="not a quasi-coupon date"):
+        generate_schedule_dates(
+            date(1990, 3, 1),
+            date(1995, 5, 15),
+            Frequency.SEMI_ANNUAL,
+            first_coupon_date=date(1990, 12, 1),
+        )
+
+
+def test_first_coupon_date_outside_the_bond_life_is_rejected():
+    with pytest.raises(ValueError, match="after issue_date"):
+        generate_schedule_dates(
+            date(1990, 3, 1),
+            date(1995, 5, 15),
+            Frequency.SEMI_ANNUAL,
+            first_coupon_date=date(1989, 11, 15),
+        )
+    with pytest.raises(ValueError, match="not be after maturity_date"):
+        generate_schedule_dates(
+            date(1990, 3, 1),
+            date(1995, 5, 15),
+            Frequency.SEMI_ANNUAL,
+            first_coupon_date=date(1995, 11, 15),
+        )

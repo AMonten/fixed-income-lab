@@ -71,3 +71,32 @@ def test_zero_coupon_bond_schedule_is_single_period():
     assert len(schedule) == 1
     assert schedule[0].accrual_start == zcb.issue_date
     assert schedule[0].accrual_end == zcb.maturity_date
+
+
+def test_bond_rejects_a_first_coupon_date_off_the_quasi_coupon_grid_at_construction():
+    """#19: a first_coupon_date that isn't a quasi-coupon date is a terms error,
+    and it fails when the bond is built -- not later, at the first cash_flows()
+    call, where the traceback would point away from the mistake."""
+    with pytest.raises(ValueError, match="not a quasi-coupon date"):
+        Bond(
+            100.0,
+            0.085,
+            date(1990, 3, 1),
+            date(1995, 5, 15),
+            first_coupon_date=date(1990, 12, 1),
+        )
+
+
+def test_bond_long_first_coupon_schedule_skips_the_unpaid_grid_date():
+    bond = Bond(
+        100.0,
+        0.085,
+        date(1990, 3, 1),
+        date(1995, 5, 15),
+        first_coupon_date=date(1990, 11, 15),
+    )
+    schedule = bond.schedule()
+    assert schedule[0].accrual_start == date(1990, 3, 1)
+    assert schedule[0].accrual_end == date(1990, 11, 15)
+    assert bond.next_coupon_date(date(1990, 6, 1)) == date(1990, 11, 15)
+    assert bond.previous_coupon_date(date(1990, 6, 1)) == date(1990, 3, 1)

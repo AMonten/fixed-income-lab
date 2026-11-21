@@ -41,6 +41,12 @@ subsequent cash flow simply adds one full period (``k``), regardless of that
 period's actual calendar length — that is the entire point of quasi-coupon
 counting: a coupon landing on a weekend, or a stub, never distorts the yield.
 
+``k`` counts *quasi-coupon periods*, not cash flows. The two coincide for
+every V1 schedule — one coupon per period — but not for a long first coupon
+(#19), which skips a quasi-coupon date: its single payment sits ``w + 1``
+periods out, not ``w``, and each later flow follows from there. Counting
+flows instead would silently shorten the whole schedule by a period.
+
 ``STREET`` is the default and should stay the default: it is what "yield to
 maturity" means on a dealer screen. ``TRUE`` discounts to the actual
 (adjusted) payment date instead — a deliberate, explicit choice for a
@@ -61,7 +67,7 @@ from datetime import date
 from enum import Enum
 
 from ..cashflows.generator import CashFlow, cash_flows_after
-from ..cashflows.schedule import regular_period_start
+from ..cashflows.schedule import months_between, regular_period_start
 from ..conventions.day_count import DayCountConvention
 from ..conventions.frequency import Frequency
 
@@ -160,21 +166,33 @@ def yield_time_fractions(
         return [day_count.year_fraction(settlement_date, first.payment_date)]
 
     period_start = first.accrual_start
+    next_quasi = first.accrual_end
+    whole_periods = list(range(len(remaining)))
     if len(remaining) > 1:
-        # Only the first period of a V1 schedule can be irregular (front stubs
-        # only), so the next one spans exactly one regular step of the grid.
+        # Only the first period of a V1 schedule can be irregular (front stub
+        # or long coupon), so the next one spans exactly one regular step.
         nxt = remaining[1]
-        step = (nxt.accrual_end.year - nxt.accrual_start.year) * 12 + (
-            nxt.accrual_end.month - nxt.accrual_start.month
-        )
-        period_start = regular_period_start(first.accrual_end, remaining[-1].accrual_end, step)
-    period_days = day_count.day_count(period_start, first.accrual_end)
+        maturity = remaining[-1].accrual_end
+        step = months_between(nxt.accrual_start, nxt.accrual_end)
+        # The quasi-coupon date the *settlement* period runs to. Normally
+        # that is the next cash flow's own accrual_end, but a long first
+        # coupon (#19) skipped one or more quasi-coupon dates: those still
+        # count as whole periods in the exponent, so step back to the first
+        # grid date after settlement instead of assuming one flow per period.
+        while True:
+            previous = regular_period_start(next_quasi, maturity, step)
+            if previous <= settlement_date:
+                break
+            next_quasi = previous
+        period_start = regular_period_start(next_quasi, maturity, step)
+        whole_periods = [months_between(next_quasi, cf.accrual_end) // step for cf in remaining]
+    period_days = day_count.day_count(period_start, next_quasi)
     if period_days <= 0:
         raise ValueError(
             f"Cannot compute street time fractions: non-positive period length "
-            f"({period_start} to {first.accrual_end})"
+            f"({period_start} to {next_quasi})"
         )
-    remaining_days = day_count.day_count(settlement_date, first.accrual_end)
+    remaining_days = day_count.day_count(settlement_date, next_quasi)
     w = remaining_days / period_days
     m = yield_convention.periods_per_year
-    return [(w + k) / m for k in range(len(remaining))]
+    return [(w + k) / m for k in whole_periods]

@@ -8,8 +8,12 @@ from fixed_income.cashflows.generator import (
     generate_variable_rate_cashflows,
     generate_zero_coupon_cashflow,
 )
-from fixed_income.cashflows.schedule import generate_schedule
-from fixed_income.conventions.day_count import Actual365Fixed, ScheduleContext
+from fixed_income.cashflows.schedule import BusinessDayConvention, generate_schedule
+from fixed_income.conventions.day_count import (
+    Actual365Fixed,
+    ActualActualICMA,
+    ScheduleContext,
+)
 from fixed_income.conventions.frequency import Frequency
 
 
@@ -110,3 +114,28 @@ def test_regular_periods_on_a_month_end_grid_pay_the_flat_coupon():
         date(2026, 3, 31),
     ]
     assert all(cf.coupon == pytest.approx(2.5, abs=1e-12) for cf in cfs)
+
+
+def test_long_first_coupon_sums_its_quasi_coupon_pieces():
+    """#19 / 31 CFR 356 App. B Sec. II.C: 8 1/2% note issued 1 Mar 1990, due
+    15 May 1995, first coupon paid 15 Nov 1990. That coupon is the flat 4.25 of
+    the 15 May -> 15 Nov step *plus* the 1 Mar -> 15 May fragment prorated over
+    the regular period it belongs to (75/181 days under ICMA): 6.0110497...,
+    the amount the Treasury publishes. One proration of the whole 8.5-month
+    span would instead pay less than a single regular coupon."""
+    schedule = generate_schedule(
+        date(1990, 3, 1),
+        date(1995, 5, 15),
+        Frequency.SEMI_ANNUAL,
+        BusinessDayConvention.NONE,
+        first_coupon_date=date(1990, 11, 15),
+    )
+    cfs = generate_bullet_cashflows(
+        100.0, 0.085, schedule, ActualActualICMA(), frequency=Frequency.SEMI_ANNUAL
+    )
+    assert cfs[0].accrual_start == date(1990, 3, 1)
+    assert cfs[0].payment_date == date(1990, 11, 15)
+    assert cfs[0].coupon == pytest.approx(4.25 * (1 + 75 / 181), abs=1e-12)
+    assert cfs[0].coupon > 4.25
+    # Only the first period is irregular; the rest are flat regular coupons.
+    assert all(cf.coupon == pytest.approx(4.25, abs=1e-12) for cf in cfs[1:])

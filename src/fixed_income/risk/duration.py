@@ -74,11 +74,27 @@ def macaulay_duration(
 
 
 def modified_duration_from_macaulay(macaulay: float, y: float, yield_convention: YieldConvention) -> float:
-    """Convert a Macaulay duration to modified duration under ``yield_convention``."""
+    """Convert a Macaulay duration to modified duration under ``yield_convention``.
+
+    This shortcut exists only because dividing by ``1 + y/m`` *is* the exact
+    conversion when the discount function is an exponential in ``t``. It is not
+    a universal identity: under
+    ``PERIODIC_SIMPLE_FRACTIONAL_PERIOD`` (#61) the two durations are no longer
+    related by a single factor, because each cash flow's sensitivity depends on
+    how much of the fractional period it sits behind. That case raises rather
+    than returning a number off by a small, undisclosed amount; use
+    :func:`modified_duration`, which is correct under every convention.
+    """
     if yield_convention.compounding is CompoundingConvention.CONTINUOUS:
         return macaulay
     if yield_convention.compounding is CompoundingConvention.ANNUAL:
         return macaulay / (1.0 + y)
+    if yield_convention.compounding is CompoundingConvention.PERIODIC_SIMPLE_FRACTIONAL_PERIOD:
+        raise ValueError(
+            "Macaulay duration does not convert to modified duration by a single factor under "
+            "PERIODIC_SIMPLE_FRACTIONAL_PERIOD: its discount function is not an exponential in t. "
+            "Use modified_duration(), which asks the convention for its own sensitivities."
+        )
     m = yield_convention.periods_per_year
     return macaulay / (1.0 + y / m)
 
@@ -90,9 +106,26 @@ def modified_duration(
     yield_convention: YieldConvention,
     day_count: DayCountConvention,
 ) -> float:
-    """Modified duration: percentage price sensitivity to a parallel yield shift."""
-    macaulay = macaulay_duration(cash_flows, settlement_date, y, yield_convention, day_count)
-    return modified_duration_from_macaulay(macaulay, y, yield_convention)
+    """Modified duration: percentage price sensitivity to a parallel yield shift.
+
+    The PV-weighted mean of each cash flow's own ``-D'/D``, which the yield
+    convention supplies (see ``YieldConvention.discount_sensitivities``). For
+    the uniform compounding rules that is identically ``macaulay / (1 + y/m)``;
+    stating it this way instead keeps it exact for a convention whose discount
+    function has no such closed form (#61).
+    """
+    remaining = cash_flows_after(cash_flows, settlement_date)
+    times = yield_time_fractions(cash_flows, settlement_date, day_count, yield_convention)
+    pv_total = 0.0
+    weighted = 0.0
+    for cf, t in zip(remaining, times, strict=True):
+        pv = cf.total * yield_convention.discount_factor(y, t)
+        first, _ = yield_convention.discount_sensitivities(y, t)
+        pv_total += pv
+        weighted += pv * first
+    if pv_total == 0:
+        raise ValueError("Cannot compute modified duration: present value of cash flows is zero")
+    return weighted / pv_total
 
 
 def dv01(

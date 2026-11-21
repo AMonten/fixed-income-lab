@@ -23,9 +23,9 @@
     "business_day_convention": "none"
   },
   "settlement_date": "2000-08-15",
+  "yield_convention": "treasury_auction",
   "quote": {},
   "expected": {
     "accrued_interest": 1.6875
-  },
-  "known_deviations": {}
+  }
 }

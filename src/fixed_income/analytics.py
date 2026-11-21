@@ -28,7 +28,7 @@ from .pricing.yield_solver import price_from_yield, solve_yield_to_maturity
 from .risk.convexity import convexity as _convexity
 from .risk.duration import dv01 as _dv01
 from .risk.duration import macaulay_duration as _macaulay_duration
-from .risk.duration import modified_duration_from_macaulay
+from .risk.duration import modified_duration as _modified_duration
 
 
 @dataclass(frozen=True)
@@ -90,7 +90,7 @@ def analyze_cash_flows(
 
     clean = dirty_price - accrued_interest
     macaulay = _macaulay_duration(cash_flows, settlement_date, yield_to_maturity, yield_convention, day_count)
-    modified = modified_duration_from_macaulay(macaulay, yield_to_maturity, yield_convention)
+    modified = _modified_duration(cash_flows, settlement_date, yield_to_maturity, yield_convention, day_count)
     dollar_dv01 = _dv01(
         cash_flows, face_value, settlement_date, yield_to_maturity, yield_convention, day_count
     )

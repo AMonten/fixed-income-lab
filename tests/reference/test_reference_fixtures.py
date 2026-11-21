@@ -79,12 +79,35 @@ def _build(spec: dict[str, Any]) -> Any:
     raise ValueError(f"Unknown instrument type in fixture: {kind}")
 
 
+_YIELD_CONVENTIONS = {
+    "street": YieldConvention.street,
+    "true": YieldConvention.true_yield,
+    "treasury_auction": YieldConvention.treasury_auction,
+}
+
+
+def _yield_convention(fixture: dict[str, Any], inst: Any) -> YieldConvention:
+    """The convention the fixture's quote is stated under, street by default.
+
+    A reference price is only meaningful alongside the convention that produced
+    it, so a fixture whose source quotes on something other than street says so
+    (e.g. the Treasury's simple-interest fractional period, #61).
+    """
+    name = fixture.get("yield_convention", "street")
+    if name not in _YIELD_CONVENTIONS:
+        raise ValueError(
+            f"Unknown yield_convention {name!r} in fixture {fixture['id']!r}; "
+            f"expected one of {sorted(_YIELD_CONVENTIONS)}"
+        )
+    return _YIELD_CONVENTIONS[name](inst.frequency)
+
+
 def _actual(fixture: dict[str, Any], field: str) -> Any:
     """The library's own value for ``field``, computed from the fixture's inputs only."""
     inst = _build(fixture["instrument"])
     settlement = date.fromisoformat(fixture["settlement_date"])
     ytm = fixture["quote"].get("ytm")
-    yc = YieldConvention.street(inst.frequency)
+    yc = _yield_convention(fixture, inst)
 
     if field == "cash_flows":
         return [

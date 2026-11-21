@@ -3,6 +3,7 @@ from datetime import date
 
 import pytest
 
+from fixed_income import analyze_bond
 from fixed_income.cashflows.schedule import BusinessDayConvention
 from fixed_income.conventions.day_count import Actual365Fixed, ActualActualICMA
 from fixed_income.conventions.frequency import Frequency
@@ -217,6 +218,89 @@ def test_present_value_from_curve_uses_per_maturity_zero_rate():
     pv = present_value_from_curve(bond.cash_flows_after(settlement), settlement, curve, bond.day_count)
     # zero-coupon bond, flat 5% curve for 5 years -> pv ~= 100 / 1.05^5
     assert pv == pytest.approx(100 / 1.05**5, rel=1e-3)
+
+
+def test_treasury_auction_discounts_the_fractional_period_at_simple_interest():
+    """#61 / 31 CFR 356 App. B: the fractional period to the next quasi-coupon
+    date earns ``1 + (r/s)(i/2)``, not ``(1 + i/2)**(r/s)``; whole periods
+    beyond it still compound."""
+    yc = YieldConvention.treasury_auction(Frequency.SEMI_ANNUAL)
+    y, w = 0.1053, 0.5
+    # m*t = w: inside the fractional period, nothing compounded yet
+    assert yc.discount_factor(y, w / 2) == pytest.approx(1 / (1 + w * y / 2), rel=1e-15)
+    # m*t = w + 1: one whole period beyond it
+    assert yc.discount_factor(y, (w + 1) / 2) == pytest.approx(1 / (1 + w * y / 2) / (1 + y / 2), rel=1e-15)
+    # simple beats compound over a partial period, so this discounts harder
+    assert yc.discount_factor(y, w / 2) < YieldConvention.street(Frequency.SEMI_ANNUAL).discount_factor(
+        y, w / 2
+    )
+
+
+@pytest.mark.parametrize("periods", [1, 2, 7])
+def test_treasury_auction_agrees_with_street_on_a_coupon_date(periods):
+    """Simple and compound interest coincide over a *whole* period, so the two
+    conventions differ only for settlement between coupon dates. This is why
+    the Treasury convention can be offered without redefining par pricing."""
+    street = YieldConvention.street(Frequency.SEMI_ANNUAL)
+    treasury = YieldConvention.treasury_auction(Frequency.SEMI_ANNUAL)
+    t = periods / 2
+    assert treasury.discount_factor(0.1053, t) == pytest.approx(street.discount_factor(0.1053, t), rel=1e-14)
+
+
+@pytest.mark.parametrize(
+    "convention",
+    [
+        YieldConvention.street(Frequency.SEMI_ANNUAL),
+        YieldConvention.treasury_auction(Frequency.SEMI_ANNUAL),
+        YieldConvention(CompoundingConvention.ANNUAL),
+        YieldConvention(CompoundingConvention.CONTINUOUS),
+    ],
+    ids=["street", "treasury_auction", "annual", "continuous"],
+)
+@pytest.mark.parametrize("t", [0.21, 0.5, 1.37, 4.0])
+def test_discount_sensitivities_match_numerical_differentiation(convention, t):
+    """``discount_sensitivities`` must really be ``(-D'/D, D''/D)``. Checked
+    against central differences of the convention's own discount factor, so the
+    analytic derivatives are verified independently of the algebra that produced
+    them — the first one drives modified duration, the second convexity."""
+    y, h = 0.0637, 1e-4
+    d0 = convention.discount_factor(y, t)
+    d_up = convention.discount_factor(y + h, t)
+    d_down = convention.discount_factor(y - h, t)
+    expected_first = -(d_up - d_down) / (2 * h) / d0
+    expected_second = (d_up - 2 * d0 + d_down) / (h * h) / d0
+
+    first, second = convention.discount_sensitivities(y, t)
+    assert first == pytest.approx(expected_first, rel=1e-6)
+    assert second == pytest.approx(expected_second, rel=1e-5)
+
+
+def test_treasury_auction_reproduces_the_published_price_at_published_precision():
+    """#61 / Sec. II.F: 10 1/2% note issued 16 May 1983, due 15 May 1991,
+    reopened 15 Aug 1983 at 10.53% (r=92, s=184, r'=183). The Treasury prints
+    price and accrued each rounded to six places, so this pins the exact claim
+    behind the 1e-6 tolerance of the reference fixtures: the library's dirty
+    price *rounds to* the published figure, and the published clean price is
+    recovered exactly from the two rounded quantities."""
+    bond = Bond(
+        100.0,
+        0.105,
+        date(1983, 5, 16),
+        date(1991, 5, 15),
+        day_count=ActualActualICMA(),
+        business_day_convention=BusinessDayConvention.NONE,
+    )
+    result = analyze_bond(
+        bond,
+        date(1983, 8, 15),
+        yield_convention=YieldConvention.treasury_auction(bond.frequency),
+        yield_to_maturity=0.1053,
+    )
+    assert round(result.dirty_price, 6) == 102.373541
+    assert round(result.accrued_interest, 6) == 2.596467
+    assert round(result.dirty_price, 6) - round(result.accrued_interest, 6) == pytest.approx(
+        99.777074, abs=1e-12
+    )
 
 
 def test_street_exponents_count_the_quasi_coupon_date_a_long_first_coupon_skips():

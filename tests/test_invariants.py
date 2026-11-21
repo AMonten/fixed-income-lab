@@ -64,6 +64,11 @@ YIELD_CONVENTIONS = {
     "true": YieldConvention.true_yield,
     "annual": lambda f: YieldConvention(CompoundingConvention.ANNUAL, f.periods_per_year),
     "continuous": lambda f: YieldConvention(CompoundingConvention.CONTINUOUS, f.periods_per_year),
+    # #61: the only convention here whose discount function is not an
+    # exponential in t. Worth running the whole grid against: the DV01
+    # invariant below compares its analytic modified duration to a full
+    # repricing, so a wrong derivative cannot pass quietly.
+    "treasury_auction": YieldConvention.treasury_auction,
 }
 # ACT/ACT ICMA needs a ScheduleContext, which the TRUE-yield branch cannot
 # supply (settlement -> payment date spans many periods; see #14/#15), so that

@@ -244,6 +244,21 @@ method** (`scipy.optimize.brentq`) — derivative-free and guaranteed to converg
 once a sign-changing bracket is found, which is more robust across long-dated and
 deep-discount bonds than Newton's method from an arbitrary starting guess.
 
+Three named conventions are available, and street stays the default — it is what
+"yield to maturity" means on a dealer screen:
+
+| Constructor | What it changes |
+|---|---|
+| `YieldConvention.street(freq)` | **Default.** Periodic compounding, exponents counting unadjusted quasi-coupon periods |
+| `YieldConvention.true_yield(freq)` | Discounts to the actual, business-day-adjusted payment date |
+| `YieldConvention.treasury_auction(freq)` | The fractional period to the next coupon earns **simple** interest, `1 + (r/s)(i/2)`, per 31 CFR 356 App. B |
+
+The last one is the US Treasury's own formula for non-indexed notes and bonds. It
+applies to any settlement between coupon dates, not only to stubs, and coincides
+with street exactly on a coupon date — simple and compound interest agree over a
+whole period. Both non-default conventions are explicit opt-ins for a specific
+reconciliation need, never a silent fallback.
+
 ### Duration, DV01, and convexity
 
 **Macaulay duration** — the present-value-weighted average time to cash flow:
@@ -258,6 +273,14 @@ change, `D_mod = -1/P * dP/dy`:
 - periodic compounding (`m` periods/year): `D_mod = D_mac / (1 + y/m)`
 - annual compounding: `D_mod = D_mac / (1 + y)`
 - continuous compounding: `D_mod = D_mac`
+
+Those shortcuts hold because the discount function is an exponential in `t`. Under
+`treasury_auction` it is not, so none of them apply. Rather than special-case it,
+duration and convexity take the PV-weighted mean of each cash flow's own `-D'/D`
+and `D''/D`, which the yield convention supplies — identical to the closed forms
+above for the three uniform rules, and exact for the Treasury one. The
+`D_mac`-to-`D_mod` shortcut remains available but raises under that convention
+instead of being wrong by a small, undisclosed margin.
 
 **DV01 / PV01** — dollar price change (per 100 par) for a 1bp parallel yield move,
 computed here by **full repricing** (central difference at `y ± 1bp`) rather than
@@ -364,7 +387,7 @@ against it (import from site-packages, `py.typed` shipped, Quickstart numbers ab
 and builds the API reference with pdoc (`pip install -e ".[docs]"` then
 `python scripts/build_docs.py`, output in `site/`).
 
-**644 tests / 98% line coverage / 16 independent reference cases / 5 day-count
+**725 tests / 98% line coverage / 16 independent reference cases / 5 day-count
 conventions validated against an external reference.** Coverage only says code ran;
 the reference cases in [`tests/reference/`](tests/reference/) say it agrees with
 something it didn't compute itself. Each fixture is a JSON file declaring its source
@@ -373,16 +396,22 @@ Treasury worked examples (31 CFR 356 App. B), QuantLib 1.44 runs frozen offline 
 [`scripts/generate_reference_fixtures.py`](scripts/generate_reference_fixtures.py)
 (QuantLib is never a CI or runtime dependency — `pip install -e ".[reference]"` only
 to regenerate), and hand derivations written out in the fixture. Every instrument
-type has at least one case. Of 71 field-level checks, 59 match within tolerance and
-12 are **documented deviations** — strict xfails carrying their reason and tracking
-issue, so a fix turns them into a failing XPASS instead of letting them go stale. All
-12 are now the same one: the Treasury's simple-interest fractional period (#61).
-Three gaps these fixtures surfaced or pinned down — month-end schedule drift (#59),
-the street fraction of a stub first period (#60) and long first coupons (#19) — are
-fixed, and their reference cases now pass; the long-coupon cases kept a price
-deviation, but re-attributed to #61 alone, since their published accrued interest
-(§II.E, §II.G) now matches exactly and their prices land within 5e-7 once the
-simple-interest factor is substituted.
+type has at least one case. **All 71 field-level checks now match within tolerance,
+with no documented deviations left.** The fixture format still supports them — a
+deviation is a strict xfail carrying its reason and tracking issue, so a fix turns it
+into a failing XPASS rather than letting the entry go stale — and four gaps these
+fixtures surfaced or pinned down have since closed that way: month-end schedule drift
+(#59), the street fraction of a stub first period (#60), long first coupons (#19) and
+the Treasury's simple-interest fractional period (#61).
+
+A reference is only meaningful alongside the convention that produced it, so a fixture
+whose source does not quote on street says so (`"yield_convention": "treasury_auction"`
+on the Treasury cases). Those cases carry a `1e-6` price tolerance rather than `5e-7`,
+because the Treasury publishes price and accrued interest each rounded to six places
+and an expected clean price is their difference — two independent roundings. The
+library's exact dirty price for §II.F, `102.373540805`, rounds to the published
+`102.373541`, and `round(dirty, 6) - round(accrued, 6)` reproduces the printed clean
+price exactly; a test pins that claim.
 
 [`tests/test_invariants.py`](tests/test_invariants.py) checks the analytical
 invariants (par at a coupon date, price decreasing in yield, convexity ≥ 0,

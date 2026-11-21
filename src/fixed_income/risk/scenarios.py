@@ -23,7 +23,7 @@ from ..conventions.day_count import DayCountConvention
 from ..pricing.yield_convention import YieldConvention
 from ..pricing.yield_solver import price_from_yield
 from .convexity import convexity as _convexity
-from .duration import macaulay_duration, modified_duration_from_macaulay
+from .duration import modified_duration
 
 DEFAULT_SHOCKS_BP: tuple[float, ...] = (-100.0, -50.0, 0.0, 50.0, 100.0)
 
@@ -64,8 +64,7 @@ def run_rate_shock_scenarios(
     base_price = price_from_yield(
         cash_flows, face_value, settlement_date, base_yield, yield_convention, day_count
     )
-    macaulay = macaulay_duration(cash_flows, settlement_date, base_yield, yield_convention, day_count)
-    modified = modified_duration_from_macaulay(macaulay, base_yield, yield_convention)
+    modified = modified_duration(cash_flows, settlement_date, base_yield, yield_convention, day_count)
     conv = _convexity(cash_flows, settlement_date, base_yield, yield_convention, day_count)
 
     results = []

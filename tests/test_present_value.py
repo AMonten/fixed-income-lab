@@ -3,7 +3,9 @@ from datetime import date
 
 import pytest
 
-from fixed_income.conventions.day_count import Actual365Fixed
+from fixed_income.cashflows.schedule import BusinessDayConvention
+from fixed_income.conventions.day_count import Actual365Fixed, ActualActualICMA
+from fixed_income.conventions.frequency import Frequency
 from fixed_income.instruments.bond import Bond
 from fixed_income.pricing.curves import Interpolation, YieldCurve, present_value_from_curve
 from fixed_income.pricing.present_value import (
@@ -215,3 +217,32 @@ def test_present_value_from_curve_uses_per_maturity_zero_rate():
     pv = present_value_from_curve(bond.cash_flows_after(settlement), settlement, curve, bond.day_count)
     # zero-coupon bond, flat 5% curve for 5 years -> pv ~= 100 / 1.05^5
     assert pv == pytest.approx(100 / 1.05**5, rel=1e-3)
+
+
+def test_street_exponents_count_the_quasi_coupon_date_a_long_first_coupon_skips():
+    """#19: with a long first coupon the first *payment* sits two quasi-coupon
+    periods out, not one. Street exponents count periods, not cash flows, so
+    they run (w + 1), (w + 2), ... where w is the fraction of the current
+    quasi-coupon period still outstanding -- 75/181 for the Sec. II.C note
+    settling on its own issue date. Counting cash flows instead would pull the
+    entire schedule a full period closer and overprice the bond."""
+    bond = Bond(
+        100.0,
+        0.085,
+        date(1990, 3, 1),
+        date(1995, 5, 15),
+        day_count=ActualActualICMA(),
+        business_day_convention=BusinessDayConvention.NONE,
+        first_coupon_date=date(1990, 11, 15),
+    )
+    fractions = yield_time_fractions(
+        bond.cash_flows(),
+        bond.issue_date,
+        bond.day_count,
+        YieldConvention.street(Frequency.SEMI_ANNUAL),
+    )
+    w = 75 / 181
+    assert [f * 2 for f in fractions[:3]] == pytest.approx([w + 1, w + 2, w + 3], abs=1e-12)
+    # 10 payment dates (15 Nov 1990 .. 15 May 1995) but 11 quasi-coupon periods
+    assert len(fractions) == 10
+    assert fractions[-1] * 2 == pytest.approx(w + 10, abs=1e-12)

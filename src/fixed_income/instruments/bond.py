@@ -23,6 +23,7 @@ from ..cashflows.schedule import (
     SchedulePeriod,
     adjust_business_day,
     generate_schedule,
+    generate_schedule_dates,
 )
 from ..conventions.calendar import WEEKEND_ONLY, Calendar
 from ..conventions.day_count import Actual365Fixed, DayCountConvention
@@ -42,6 +43,14 @@ class Bond:
         day_count: Day-count convention used to size each coupon.
         business_day_convention: How payment dates are rolled onto business days.
         calendar: Which dates count as business days for that roll (weekend-only by default).
+        first_coupon_date: When the first coupon is actually paid, for a bond
+            whose terms say so explicitly. Must be a quasi-coupon date of the
+            maturity-anchored grid. ``None`` (the default) pays the odd days
+            between issue and the first grid date on that date — a short front
+            stub. Naming a *later* grid date folds them into that coupon
+            instead: a **long first coupon** (#19), which real issuance uses
+            when a bond is sold too close to a coupon date for a stub payment
+            to be practical.
     """
 
     face_value: float
@@ -52,12 +61,21 @@ class Bond:
     day_count: DayCountConvention = field(default_factory=Actual365Fixed)
     business_day_convention: BusinessDayConvention = BusinessDayConvention.FOLLOWING
     calendar: Calendar = WEEKEND_ONLY
+    first_coupon_date: date | None = None
 
     def __post_init__(self) -> None:
         if self.face_value <= 0:
             raise ValueError("face_value must be positive")
         if self.issue_date >= self.maturity_date:
             raise ValueError("issue_date must be before maturity_date")
+        if self.first_coupon_date is not None:
+            # Validate eagerly: a first_coupon_date off the quasi-coupon grid is
+            # a terms error, and finding out at the first cash_flows() call puts
+            # the traceback far from the mistake. Only when one was given, so a
+            # bond that doesn't use the feature builds no schedule here.
+            generate_schedule_dates(
+                self.issue_date, self.maturity_date, self.frequency, self.first_coupon_date
+            )
 
     def schedule(self) -> list[SchedulePeriod]:
         return generate_schedule(
@@ -66,6 +84,7 @@ class Bond:
             self.frequency,
             self.business_day_convention,
             self.calendar,
+            self.first_coupon_date,
         )
 
     def cash_flows(self) -> list[CashFlow]:

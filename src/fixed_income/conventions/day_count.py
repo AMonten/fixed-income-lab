@@ -179,7 +179,22 @@ class Actual365Fixed(DayCountConvention):
 
 
 class Thirty360US(DayCountConvention):
-    """30/360 Bond Basis: every month treated as having 30 days."""
+    """30/360 Bond Basis (US / NASD): every month treated as having 30 days.
+
+    The four adjustment rules, applied in this order:
+
+    1. If *both* dates are the last day of February, ``D2`` becomes 30.
+    2. If the start date is the last day of February, ``D1`` becomes 30.
+    3. If ``D1`` is 31, it becomes 30.
+    4. If ``D2`` is 31 and ``D1`` is (now) 30, ``D2`` becomes 30.
+
+    Rule 1 is what keeps the end-of-February clamp symmetric. Without it the
+    clamp applies to the start date only, so the last day of February measured
+    against *itself* came out as -1 or -2 days, and an accrual period starting
+    there paid negative accrued interest (found by the property tests, #39).
+    It is also what makes end-of-February to end-of-February a full 360-day
+    year rather than 359.
+    """
 
     name = "30/360"
 
@@ -188,6 +203,9 @@ class Thirty360US(DayCountConvention):
         m1, m2 = start.month, end.month
         y1, y2 = start.year, end.year
 
+        both_end_of_february = _is_last_day_of_february(start) and _is_last_day_of_february(end)
+        if both_end_of_february:
+            d2 = 30
         if d1 == 31 or _is_last_day_of_february(start):
             d1 = 30
         if d2 == 31 and d1 == 30:

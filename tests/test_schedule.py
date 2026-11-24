@@ -91,6 +91,25 @@ def test_regular_period_start_rejects_a_date_off_the_grid():
         regular_period_start(date(1991, 8, 31), date(1992, 3, 31), 6)
 
 
+def test_regular_period_start_rejects_the_right_month_on_the_wrong_day():
+    """Grid membership is month offset *and* day of month. 20 Sep is a whole
+    number of semi-annual steps before a 31 Mar maturity, but it is not a date
+    the grid lands on (#39)."""
+    with pytest.raises(ValueError, match="not on the regular"):
+        regular_period_start(date(1991, 9, 20), date(1992, 3, 31), 6)
+
+
+def test_first_coupon_date_on_the_right_month_but_the_wrong_day_is_rejected():
+    """Found by the property test in ``test_schedule_properties.py``. Before
+    the fix this was accepted: 2020-07-15 was dropped from the schedule and the
+    first coupon silently moved to 2021-01-15, a date the caller never named.
+    Bad input has to fail loudly, not resolve to a plausible other answer."""
+    with pytest.raises(ValueError, match="not a quasi-coupon date"):
+        generate_schedule_dates(
+            date(2020, 1, 20), date(2025, 1, 15), Frequency.SEMI_ANNUAL, date(2020, 7, 20)
+        )
+
+
 def test_generate_schedule_dates_requires_issue_before_maturity():
     with pytest.raises(ValueError):
         generate_schedule_dates(date(2025, 1, 15), date(2020, 1, 15), Frequency.ANNUAL)

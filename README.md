@@ -387,7 +387,7 @@ against it (import from site-packages, `py.typed` shipped, Quickstart numbers ab
 and builds the API reference with pdoc (`pip install -e ".[docs]"` then
 `python scripts/build_docs.py`, output in `site/`).
 
-**725 tests / 98% line coverage / 16 independent reference cases / 5 day-count
+**757 tests / 98% line coverage / 16 independent reference cases / 5 day-count
 conventions validated against an external reference.** Coverage only says code ran;
 the reference cases in [`tests/reference/`](tests/reference/) say it agrees with
 something it didn't compute itself. Each fixture is a JSON file declaring its source
@@ -419,6 +419,22 @@ principal sums to face, dirty = clean + accrued, factor ∈ [0, 1], DV01 ≈ D_m
 across every day count, frequency and yield convention; the rest of the suite covers
 schedule generation, accrued-interest edge cases, price/yield round-tripping, FRN
 reset provenance, amortizing/factor paydown, scenarios and portfolio roll-ups.
+
+Schedule generation and the day-count conventions are also tested by property, with
+[`hypothesis`](https://hypothesis.readthedocs.io/):
+[`tests/test_schedule_properties.py`](tests/test_schedule_properties.py) and
+[`tests/test_day_count_properties.py`](tests/test_day_count_properties.py). An
+example-based test says *this* schedule is right; a property says what has to hold
+for every bond — the grid never drifts off its maturity anchor, only the front period
+can be irregular, a date measures zero days against itself, accrued interest never
+un-accrues. Those are the statements that break on a month-end maturity in a leap
+year, which is where two bugs turned up that the example suite could not see: a
+`first_coupon_date` with the right month but the wrong day of month was silently
+resolved to the *next* coupon date instead of rejected, and 30/360 US was missing the
+rule that makes its end-of-February clamp symmetric, so the last day of February
+measured −1 days against itself and accrued negative interest. CI runs the default
+hundred examples per property; `pytest --hypothesis-profile=deep` runs a thousand
+(about a minute) and is worth running before changing how schedules are built.
 
 ## Assumptions & limitations
 

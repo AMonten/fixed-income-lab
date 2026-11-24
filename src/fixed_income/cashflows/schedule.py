@@ -183,9 +183,23 @@ def regular_period_start(period_end: date, maturity_date: date, months_step: int
 
     Used both to decide whether a period is regular (its start *is* this date)
     and as the reference period a stub is a fragment of (ACT/ACT ICMA).
+
+    Raises ``ValueError`` unless ``period_end`` is itself a grid date. Grid
+    membership is two conditions, not one: the month offset back to maturity
+    has to be a whole number of steps **and** the day of month has to be the
+    one the grid lands on. Checking only the offset let a date like 20 Jul pass
+    on a 15 Jan/15 Jul grid; since validating ``first_coupon_date`` is the only
+    place that check is load-bearing, such a date was not rejected but silently
+    read as the *next* grid date -- a coupon paid on a date nobody asked for
+    (#39).
     """
-    months_back = (maturity_date.year - period_end.year) * 12 + (maturity_date.month - period_end.month)
-    if months_back < 0 or months_back % months_step:
+    months_back = months_between(period_end, maturity_date)
+    on_grid = (
+        months_back >= 0
+        and months_back % months_step == 0
+        and period_end == add_months(maturity_date, -months_back)
+    )
+    if not on_grid:
         raise ValueError(
             f"{period_end} is not on the regular {months_step}-month grid "
             f"anchored at maturity {maturity_date}"

@@ -55,6 +55,33 @@ def test_thirty_360_last_day_of_february_clamps():
     assert dc.day_count(date(2024, 2, 29), date(2024, 3, 31)) == 30
 
 
+def test_thirty_360_both_ends_on_the_last_day_of_february():
+    """The first of the four 30/360 US (NASD) rules, and the one that makes the
+    end-of-February clamp symmetric: when *both* dates are the last day of
+    February, D2 becomes 30 as well.
+
+    Without it the clamp lands on D1 only, and a date with itself comes out as
+    -1 days. Found by the property tests (#39), where it surfaced as an accrual
+    period of -1 days paying *negative* accrued interest."""
+    dc = Thirty360US()
+    # A date with itself is zero days under every convention, this one included.
+    assert dc.day_count(date(2000, 2, 29), date(2000, 2, 29)) == 0
+    assert dc.day_count(date(2023, 2, 28), date(2023, 2, 28)) == 0
+    # End of February to end of February a year later is a full 30/360 year,
+    # whichever of the two years is the leap one.
+    assert dc.day_count(date(2023, 2, 28), date(2024, 2, 29)) == 360
+    assert dc.day_count(date(2024, 2, 29), date(2025, 2, 28)) == 360
+    assert dc.year_fraction(date(2023, 2, 28), date(2024, 2, 29)) == pytest.approx(1.0)
+    # Only February triggers the rule; 30 Apr with itself is zero via the plain path.
+    assert dc.day_count(date(2024, 4, 30), date(2024, 4, 30)) == 0
+    # The rule is symmetric, not one-sided: an end date on the last day of
+    # February does *not* clamp to 30 on its own. 15 Jan -> 29 Feb is 30 + 14
+    # days, not 30 + 15. (Pins the asymmetry: a mutant that clamped D2 whenever
+    # the end date was end-of-February passed all 757 other tests.)
+    assert dc.day_count(date(2024, 1, 15), date(2024, 2, 29)) == 44
+    assert dc.day_count(date(2023, 1, 15), date(2023, 2, 28)) == 43
+
+
 @pytest.mark.parametrize(
     "key",
     [
